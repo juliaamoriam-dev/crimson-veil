@@ -1,0 +1,247 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crimson Veil — Divisão de Crimes Especiais // Cidade de Blackwood</title>
+    <link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+
+    <!-- ====================================================================
+         1. TELA DE LOGIN / ACESSO RESTRITO
+         ==================================================================== -->
+    <div id="tela-login" class="tela-login-container">
+        <div class="login-card">
+            <div class="login-carimbo-topo">
+                <span>DIVISÃO DE CRIMES ESPECIAIS</span>
+                <span>CIDADE DE BLACKWOOD</span>
+            </div>
+
+            <div class="login-marca">
+                <div class="login-marca-icone">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                </div>
+                <h1 class="login-titulo">CRIMSON VEIL</h1>
+                <div class="login-subtitulo">TERMINAL INVESTIGATIVO OPERACIONAL</div>
+            </div>
+
+            <form id="form-login">
+                <div class="campo-grupo">
+                    <label class="campo-rotulo">Identificação / Distintivo</label>
+                    <input type="text" class="campo-input" value="Det. Milena Ramires (#4082-DCE)" required>
+                </div>
+
+                <div class="campo-grupo">
+                    <label class="campo-rotulo">Chave Criptográfica Departamental</label>
+                    <input type="password" class="campo-input" value="••••••••••••" required>
+                </div>
+
+                <button type="submit" class="btn-primario">
+                    <span>ACESSAR TERMINAL DA DCE</span>
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                </button>
+            </form>
+
+            <div class="login-rodape">
+                "ALGUNS SEGREDOS NUNCA MORREM. E ALGUMAS SOMBRAS NUNCA DESAPARECEM."
+            </div>
+        </div>
+    </div>
+
+    <!-- ====================================================================
+         2. TELA DO SISTEMA PRINCIPAL (APLICAÇÃO)
+         ==================================================================== -->
+    <div id="tela-sistema" class="app-container" style="display: none;">
+        
+        <!-- HEADER DO SISTEMA -->
+        <header class="header-sistema">
+            <div class="header-esquerda">
+                <div class="logo-sistema">
+                    <div class="logo-emblema">CV</div>
+                    <div class="logo-texto-box">
+                        <span class="logo-texto-principal">CRIMSON VEIL</span>
+                        <span class="logo-texto-sub">DIVISÃO DE CRIMES ESPECIAIS — BLACKWOOD</span>
+                    </div>
+                </div>
+
+                <div class="caso-ativo-badge">
+                    <div class="caso-ativo-dot"></div>
+                    <span>CASO #001: QUANDO O SANGUE DESAPARECE</span>
+                </div>
+            </div>
+
+            <div class="header-direita">
+                <div class="relogio-bloco">
+                    <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <span id="relogio-topo">Cidade de Blackwood — 02:17</span>
+                </div>
+
+                <div class="perfil-bloco">
+                    <div class="perfil-avatar">MR</div>
+                    <div class="perfil-info">
+                        <span class="perfil-nome">Det. Milena Ramires</span>
+                        <span class="perfil-cargo">Distintivo #4082-DCE</span>
+                    </div>
+                </div>
+
+                <button class="btn-icone" id="btn-logout" title="Bloquear Terminal">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- CORPO DO SISTEMA (SIDEBAR + ÁREA DE CONTEÚDO) -->
+        <div class="corpo-sistema">
+            
+            <!-- SIDEBAR DE NAVEGAÇÃO -->
+            <aside class="sidebar">
+                <nav class="menu-navegacao">
+
+                    <a class="nav-item" data-aba="dashboard">
+                        <svg class="nav-item-icone" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                        <span>Visão Geral</span>
+                    </a>
+
+                    <a class="nav-item ativo" data-aba="investigacao">
+                        <svg class="nav-item-icone" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                        <span>Investigação</span>
+                        <span class="nav-item-badge nav-vivo">●</span>
+                    </a>
+
+                    <span class="menu-secao-rotulo">Investigação</span>
+
+                    <a class="nav-item" data-aba="casos">
+                        <svg class="nav-item-icone" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                        <span>Casos</span>
+                        <span class="nav-item-badge">1</span>
+                    </a>
+
+                    <a class="nav-item" data-aba="pistas">
+                        <svg class="nav-item-icone" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        <span>Pistas</span>
+                        <span class="nav-item-badge">6</span>
+                    </a>
+
+                    <a class="nav-item" data-aba="evidencias">
+                        <svg class="nav-item-icone" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                        <span>Evidências</span>
+                        <span class="nav-item-badge">4</span>
+                    </a>
+
+                    <a class="nav-item" data-aba="pessoas">
+                        <svg class="nav-item-icone" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                        <span>Pessoas</span>
+                    </a>
+
+                    <a class="nav-item" data-aba="locais">
+                        <svg class="nav-item-icone" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
+                        <span>Locais</span>
+                    </a>
+
+                    <span class="menu-secao-rotulo">Análise</span>
+
+                    <a class="nav-item" data-aba="timeline">
+                        <svg class="nav-item-icone" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <span>Timeline</span>
+                    </a>
+
+                    <a class="nav-item" data-aba="conexoes">
+                        <svg class="nav-item-icone" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/></svg>
+                        <span>Conexões</span>
+                    </a>
+
+                    <span class="menu-secao-rotulo">Material</span>
+
+                    <a class="nav-item" data-aba="artes">
+                        <svg class="nav-item-icone" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        <span>Identidade Visual</span>
+                    </a>
+                </nav>
+
+                <div class="sidebar-rodape">
+                    <div class="status-conexao">
+                        <div class="dot-status"></div>
+                        <span>DCE // CONEXÃO ENCRIPTADA</span>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- ÁREA PRINCIPAL DINÂMICA -->
+            <main class="area-principal" id="conteudo-principal">
+                <!-- Conteúdo renderizado dinamicamente -->
+            </main>
+        </div>
+    </div>
+
+    <!-- ====================================================================
+         3. MODAL DE DETALHES
+         ==================================================================== -->
+    <div id="modal-overlay" class="modal-overlay">
+        <div class="modal-janela">
+            <div class="modal-header">
+                <span id="modal-titulo" class="modal-titulo">DETALHES</span>
+                <button class="btn-icone" id="modal-fechar">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div id="modal-corpo" class="modal-corpo">
+                <!-- Conteúdo do modal -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn-primario" style="padding: 8px 18px; font-size: 12px;" onclick="document.getElementById('modal-overlay').classList.remove('ativo')">FECHAR</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ====================================================================
+         4. MODAL / FLUXO DO CRIADOR DE PERSONAGEM & NOVA CAMPANHA
+         ==================================================================== -->
+    <div id="modal-criador" class="modal-overlay modal-criador-overlay">
+        <div class="modal-janela modal-criador-janela">
+            <!-- Cabeçalho do terminal de criação -->
+            <div class="criador-topo-dce">
+                <div class="criador-marca">
+                    <span class="criador-tag-dce">DCE // TERMINAL CONFIDENCIAL</span>
+                    <span class="criador-cidade">CIDADE DE BLACKWOOD</span>
+                </div>
+                <button class="btn-icone" id="criador-fechar" title="Fechar fluxo">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <!-- Stepper de etapas (visível nas etapas 1 a 4) -->
+            <div id="criador-stepper" class="criador-stepper" style="display: none;">
+                <div class="stepper-passo" data-passo="1">
+                    <span class="stepper-num">01</span>
+                    <span class="stepper-nome">IDENTIDADE</span>
+                </div>
+                <div class="stepper-linha"></div>
+                <div class="stepper-passo" data-passo="2">
+                    <span class="stepper-num">02</span>
+                    <span class="stepper-nome">ORIGEM</span>
+                </div>
+                <div class="stepper-linha"></div>
+                <div class="stepper-passo" data-passo="3">
+                    <span class="stepper-num">03</span>
+                    <span class="stepper-nome">RETRATO</span>
+                </div>
+                <div class="stepper-linha"></div>
+                <div class="stepper-passo" data-passo="4">
+                    <span class="stepper-num">04</span>
+                    <span class="stepper-nome">CONFIRMAÇÃO</span>
+                </div>
+            </div>
+
+            <!-- Corpo dinâmico das etapas -->
+            <div id="criador-conteudo" class="criador-conteudo">
+                <!-- Conteúdo renderizado dinamicamente -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Script principal como módulo ES6 -->
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>
