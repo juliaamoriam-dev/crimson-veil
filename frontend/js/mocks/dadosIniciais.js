@@ -22,7 +22,7 @@ export const dadosCampanha = {
         status: "EM INVESTIGAÇÃO",
         prioridade: "DIVISÃO DE CRIMES ESPECIAIS",
         dataAbertura: "14/10/2026",
-        horarioAbertura: "02:17",
+        horarioAbertura: "03:30",
         resumo: "Arthur Vasconcelos foi encontrado morto em seu apartamento sob circunstâncias anômalas. Relógios parados simultaneamente às 02:17, interrupção misteriosa de 53 segundos no elevador e anotações cruzando desaparecimentos históricos vinculados ao mesmo símbolo.",
         classificacaoBadge: "CONFIDENCIAL // CRIMES ESPECIAIS"
     },
@@ -39,7 +39,7 @@ export const dadosCampanha = {
     },
     estadoMundo: {
         dataAtual: "14 de Outubro de 2026",
-        horarioAtual: "02:17",
+        horarioAtual: "03:30",
         localAtual: "Apartamento 504 — Cidade de Blackwood",
         clima: "Chuva fria e constante sobre os edifícios de Blackwood",
         personagensPresentes: [
@@ -55,17 +55,17 @@ export const dadosCenaAtual = {
     id: "cena-01",
     titulo: "CRIMSON VEIL — Episódio I: Quando o Sangue Desaparece",
     local: "Apartamento 504",
-    horario: "02:17",
+    horario: "03:30",
     mensagens: [
         {
             tipo: "SISTEMA",
-            conteudo: "CRIMSON VEIL // DIVISÃO DE CRIMES ESPECIAIS — CIDADE DE BLACKWOOD\nEPISÓDIO I — QUANDO O SANGUE DESAPARECE\nAPARTAMENTO 504 // 02:17",
-            horario: "02:17"
+            conteudo: "CRIMSON VEIL // DIVISÃO DE CRIMES ESPECIAIS — CIDADE DE BLACKWOOD\nEPISÓDIO I — QUANDO O SANGUE DESAPARECE\nAPARTAMENTO 504 // 03:30",
+            horario: "03:30"
         },
         {
             tipo: "NARRADOR",
-            conteudo: "Apartamento 504. Décimo andar. 02:17.\n\nChuva fina contra os vidros. As luzes das viaturas chegam lá de baixo, refletindo no asfalto.\n\nArthur Vasconcelos está na poltrona, diante da escrivaninha. Imóvel. Três relógios no cômodo mostram o mesmo horário — o pêndulo na parede, o despertador de cabeceira e o mostrador no pulso da vítima. Todos parados em 02:17.\n\nA equipe da DCE trabalha em silêncio. Perícia fotografa. Helena examina a fechadura da porta.\n\nAdrian: — Sem sinal de arrombamento?\n\nHelena: — Nenhum. Quem entrou foi convidado ou tinha chave.\n\nAdrian: — Câmeras do corredor?\n\nHelena: — Noah está verificando.\n\nMaya se afasta da poltrona e puxa as luvas.\n\nMaya: — Nenhum trauma visível. Nenhuma marca. O coração parou, mas não consigo te dizer o motivo agora. Preciso do necrotério.\n\nAdrian olha para os três relógios parados. Não diz nada por um momento.\n\nAdrian: — Sem queda de energia no edifício, de acordo com a portaria.",
-            horario: "02:17"
+            conteudo: "Apartamento 504. Quinto andar. 03:30.\n\nChuva fina contra os vidros. As luzes das viaturas chegam lá de baixo, refletindo no asfalto.\n\nArthur Vasconcelos está na poltrona, diante da escrivaninha. Imóvel. Três relógios no cômodo mostram o mesmo horário — o pêndulo na parede, o despertador de cabeceira e o mostrador no pulso da vítima. Todos parados em 02:17.\n\nA equipe da DCE trabalha em silêncio. Perícia fotografa. Helena examina a fechadura da porta.\n\nAdrian: — Sem sinal de arrombamento?\n\nHelena: — Nenhum. Quem entrou foi convidado ou tinha chave.\n\nAdrian: — Câmeras do corredor?\n\nHelena: — Noah está verificando.\n\nMaya se afasta da poltrona e puxa as luvas.\n\nMaya: — Nenhum trauma visível. Nenhuma marca. O coração parou, mas não consigo te dizer o motivo agora. Preciso do necrotério.\n\nAdrian olha para os três relógios parados. Não diz nada por um momento.\n\nAdrian: — Sem queda de energia no edifício, de acordo com a portaria.",
+            horario: "03:30"
         }
     ]
 };
@@ -317,12 +317,12 @@ export const dadosEvidencias = [
         id: "EVID-04",
         protocolo: "DCE-PERICIA-004/26",
         nome: "Concessão Cadastral do Depósito 217",
-        tipo: "Registro Público / Documento",
-        localColeta: "Cartório Notarial de Blackwood",
+        tipo: "Registro Público / Certidão Eletrônica",
+        localColeta: "Base Cadastral Integrada de Blackwood (Consulta Digital DCE)",
         dataColeta: "14/10/2026 — 03:50",
         peritoResponsavel: "Detetive Helena Voss",
         statusCustodia: "Anexado aos Autos do Caso 001",
-        resumo: "Documentação de concessão do galpão industrial no terminal ferroviário abandonado há 15 anos."
+        resumo: "Certidão eletrônica de concessão do galpão industrial no terminal ferroviário abandonado há 15 anos, obtida via terminal da DCE."
     }
 ];
 

@@ -23,12 +23,12 @@ Este documento apresenta as fases de evolução do projeto Crimson Veil. As tare
 * **Objetivo:** Definição da stack tecnológica, camadas do sistema, contratos conceituais da API REST, estratégia do WORLD_STATE, fluxo do motor narrativo e diretrizes de segurança.
 
 ### FASE 4 — MVP
-* **Status:** Próxima Etapa
-* **Tarefas específicas:** `A DEFINIR`
+* **Status:** Frontend funcional concluído; base de persistência do Marco 1 implementada.
+* **Tarefas específicas:** Interface, campanha canônica e integração da API local.
 
 ### FASE 5 — Testes
-* **Status:** A Iniciar
-* **Tarefas específicas:** `A DEFINIR`
+* **Status:** Testes de aceitação do Marco 1 implementados e executados.
+* **Tarefas específicas:** Aumentar cobertura conforme evoluírem as regras de negócio.
 
 ### FASE 6 — Refinamento
 * **Status:** A Iniciar
@@ -41,3 +41,10 @@ Este documento apresenta as fases de evolução do projeto Crimson Veil. As tare
 ### FASE 8 — Evolução
 * **Status:** A Iniciar
 * **Tarefas específicas:** `A DEFINIR`
+
+## Marco 1 — Backend e Persistência Real
+
+* **Status:** Concluído e validado localmente.
+* **Escopo:** API REST em Java 21/Spring Boot, persistência SQLite, migração inicial protegida de `camp-001`, ações e histórico idempotentes, controle otimista de versão e integração sem alteração visual do frontend.
+* **Fora do escopo:** IA, autonomia completa de NPCs, autenticação e hospedagem.
+* **Próximo marco:** Não iniciado; depende de decisão e planejamento próprios.

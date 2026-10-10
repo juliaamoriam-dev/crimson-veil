@@ -17,6 +17,23 @@ import {
     dadosConexoes
 } from './mocks/dadosIniciais.js';
 
+import {
+    calcularDuracaoAcao,
+    aplicarAvancoTempo,
+    horarioParaMinutos,
+    minutosParaHorario
+} from './core/tempo.js';
+
+import {
+    ApiError,
+    carregarCampanha,
+    criarCampanha,
+    listarCampanhas,
+    migrarCampanhaCanonica,
+    salvarAcao,
+    salvarEstadoCampanha
+} from './core/api.js';
+
 // Estado local da sessão ativa do protótipo
 const estadoLocal = {
     autenticado: false,
@@ -39,7 +56,7 @@ function criarCampanhaCanonicaInicial() {
         episodio: `Episódio ${dadosCampanha.episodio}`,
         status: 'EM INVESTIGAÇÃO',
         progresso: 'Episódio I — Cena ativa',
-        ultimaAtividade: 'Hoje, 02:17',
+        ultimaAtividade: 'Hoje, 03:30',
         ativa: true,
         // Protagonista próprio de camp-001 (cópia isolada)
         protagonista: {
@@ -81,7 +98,7 @@ function criarCampanhaCanonicaInicial() {
         pistas: JSON.parse(JSON.stringify(dadosPistas)),
         evidencias: JSON.parse(JSON.stringify(dadosEvidencias)),
         eventLog: [
-            { tipo: 'SISTEMA', descricao: 'Investigação do Caso #001 iniciada no Apartamento 504', horario: '02:17' }
+            { tipo: 'SISTEMA', descricao: 'Investigação do Caso #001 iniciada no Apartamento 504', horario: '03:30' }
         ],
         memoria: {
             imediata: ['Corpo de Arthur Vasconcelos na escrivaninha', 'Relógios analógicos travados às 02:17'],
@@ -95,7 +112,7 @@ function criarCampanhaCanonicaInicial() {
                 {
                     id: 'EV-001-01',
                     tipo: 'EVENTO_NPC_MOVIMENTOU',
-                    horarioPrevisto: '02:37',
+                    horarioPrevisto: '03:50',
                     local: 'Apartamento 504',
                     npcAlvo: 'Maya',
                     dados: { localAnterior: 'Apartamento 504', localNovo: 'Necrotério da DCE' },
@@ -106,7 +123,7 @@ function criarCampanhaCanonicaInicial() {
                 {
                     id: 'EV-001-02',
                     tipo: 'EVENTO_CLIMA',
-                    horarioPrevisto: '02:52',
+                    horarioPrevisto: '04:05',
                     local: null,
                     npcAlvo: null,
                     dados: { climaAnterior: 'Chuva fria e constante sobre os edifícios de Blackwood', climaNovo: 'Tempestade com trovões sobre Blackwood' },
@@ -117,7 +134,7 @@ function criarCampanhaCanonicaInicial() {
                 {
                     id: 'EV-001-03',
                     tipo: 'EVENTO_INVESTIGACAO',
-                    horarioPrevisto: '03:07',
+                    horarioPrevisto: '04:20',
                     local: 'Central da DCE',
                     npcAlvo: 'Noah',
                     dados: { descoberta: 'anomalia eletromagnética nos logs do elevador isolada' },
@@ -128,7 +145,7 @@ function criarCampanhaCanonicaInicial() {
                 {
                     id: 'EV-001-04',
                     tipo: 'EVENTO_LOCAL_ALTERADO',
-                    horarioPrevisto: '03:22',
+                    horarioPrevisto: '04:35',
                     local: 'Apartamento 504',
                     npcAlvo: null,
                     dados: { mudanca: 'Levantamento da perícia concluído' },
@@ -275,6 +292,8 @@ const gerenciadorCampanhas = {
     campanhas: [
         criarCampanhaCanonicaInicial()
     ],
+    versoes: new Map(),
+    operacoesPendentes: new Map(),
 
     /**
      * Retorna a campanha atualmente ativa.
@@ -283,43 +302,71 @@ const gerenciadorCampanhas = {
         return this.campanhas.find(c => c.ativa) || this.campanhas[0];
     },
 
-    /**
-     * Sincroniza o estado em memória da campanha ativa antes de alternar ou salvar.
-     */
-    salvarEstadoCampanhaAtiva() {
-        const ativa = this.campanhaAtiva();
-        if (ativa) {
-            ativa.mensagensCena = [...estadoLocal.mensagensCena];
-            ativa.pistas = [...estadoLocal.pistasDesc];
-            ativa.estadoMundo.horarioAtual = estadoLocal.horarioAtual;
-            ativa.contadorAcoes = estadoLocal.contadorAcoes;
-            ativa.ultimaAtividade = `Hoje, ${estadoLocal.horarioAtual}`;
-            if (ativa.casoAtivo) {
-                ativa.progresso = `Ações: ${estadoLocal.contadorAcoes} | ${ativa.casoAtivo.codigo}`;
-            } else {
-                ativa.progresso = `Ações: ${estadoLocal.contadorAcoes} | Prólogo`;
-            }
+    async carregarDoServidor() {
+        let resumos = await listarCampanhas();
+        let idMaisRecente = null;
+        if (resumos.length === 0) {
+            const inicial = criarCampanhaCanonicaInicial();
+            const migrada = await migrarCampanhaCanonica(inicial);
+            this.campanhas = [migrada.campanha];
+            this.versoes = new Map([[migrada.campanha.id, migrada.versao]]);
+        } else {
+            idMaisRecente = resumos.reduce((maisRecente, atual) =>
+                new Date(atual.atualizadaEm) > new Date(maisRecente.atualizadaEm) ? atual : maisRecente
+            ).id;
+            const carregadas = await Promise.all(resumos.map(async resumo => {
+                const resposta = await carregarCampanha(resumo.id);
+                return { campanha: resposta.campanha, versao: resposta.versao };
+            }));
+            this.campanhas = carregadas.map(item => item.campanha);
+            this.versoes = new Map(carregadas.map(item => [item.campanha.id, item.versao]));
         }
+
+        const ativa = this.campanhas.find(campanha => campanha.id === idMaisRecente)
+            || this.campanhas.find(campanha => campanha.ativa)
+            || this.campanhas[0];
+        this.campanhas.forEach(campanha => campanha.ativa = campanha.id === ativa.id);
+        this.sincronizarEstadoLocalComAtiva();
+    },
+
+    versaoDaCampanha(id) {
+        const versao = this.versoes.get(id);
+        if (!Number.isInteger(versao)) {
+            throw new Error(`Versão persistida indisponível para a campanha ${id}.`);
+        }
+        return versao;
+    },
+
+    substituirCampanhaPersistida(campanha, versao) {
+        const indice = this.campanhas.findIndex(item => item.id === campanha.id);
+        const eraAtiva = indice >= 0 && this.campanhas[indice].ativa;
+        const substituta = { ...campanha, ativa: eraAtiva };
+        if (indice >= 0) this.campanhas[indice] = substituta;
+        else this.campanhas.push(substituta);
+        this.versoes.set(campanha.id, versao);
+        if (eraAtiva) this.sincronizarEstadoLocalComAtiva();
+        return substituta;
+    },
+
+    async atualizarCampanhaDoServidor(id) {
+        const resposta = await carregarCampanha(id);
+        return this.substituirCampanhaPersistida(resposta.campanha, resposta.versao);
     },
 
     /**
      * Cria uma nova campanha com novo ID, novo personagem, nova história e novo estado limpo.
      */
-    criarNovaCampanha(novoProtagonista = null) {
-        // 1. Salva a campanha ativa anterior para que ela permaneça intacta
-        this.salvarEstadoCampanhaAtiva();
-
-        // 2. Desativa todas as campanhas existentes
-        this.campanhas.forEach(c => c.ativa = false);
-
-        // 3. Gera novo identificador sequencial
-        const novoId = `camp-${String(this.campanhas.length + 1).padStart(3, '0')}`;
-
-        // 4. Cria a nova campanha sem herdar nada do caso anterior
+    async criarNovaCampanha(novoProtagonista = null) {
+        let numero = this.campanhas.length + 1;
+        let novoId = `camp-${String(numero).padStart(3, '0')}`;
+        while (this.campanhas.some(campanha => campanha.id === novoId)) {
+            numero++;
+            novoId = `camp-${String(numero).padStart(3, '0')}`;
+        }
         const nova = criarNovaCampanhaEstado(novoId, novoProtagonista);
-        this.campanhas.push(nova);
-
-        // 5. Ativa a nova campanha e sincroniza o estado da sessão
+        const resposta = await criarCampanha(nova);
+        this.campanhas.forEach(campanha => campanha.ativa = false);
+        this.substituirCampanhaPersistida(resposta.campanha, resposta.versao);
         this.ativarCampanha(nova.id);
     },
 
@@ -327,11 +374,6 @@ const gerenciadorCampanhas = {
      * Ativa uma campanha existente e restaura o seu estado integralmente.
      */
     ativarCampanha(id) {
-        const atual = this.campanhas.find(c => c.ativa);
-        if (atual && atual.id !== id) {
-            this.salvarEstadoCampanhaAtiva();
-        }
-
         const alvo = this.campanhas.find(c => c.id === id);
         if (!alvo) return;
 
@@ -394,21 +436,28 @@ function atualizarProtagonistaUI(protagonista) {
 // ─── SISTEMA DE MUNDO VIVO ───────────────────────────────────────────────────
 
 /**
- * Converte uma string "HH:MM" para o total de minutos.
- * Usada para comparação de horários entre eventos agendados e o tempo atual.
+ * Converte uma string "HH:MM" para o total de minutos (delega ao core tempo.js).
  */
 function horaParaMinutos(horario) {
-    const partes = (horario || '00:00').split(':');
-    return (parseInt(partes[0], 10) || 0) * 60 + (parseInt(partes[1], 10) || 0);
+    try {
+        return horarioParaMinutos(horario);
+    } catch {
+        const partes = (horario || '00:00').split(':');
+        return (parseInt(partes[0], 10) || 0) * 60 + (parseInt(partes[1], 10) || 0);
+    }
 }
 
 /**
- * Converte minutos totais de volta para string "HH:MM".
+ * Converte minutos totais de volta para string "HH:MM" (delega ao core tempo.js).
  */
 function minutosParaHora(minutos) {
-    const h = Math.floor(minutos / 60) % 24;
-    const m = minutos % 60;
-    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    try {
+        return minutosParaHorario(minutos).horario;
+    } catch {
+        const h = Math.floor(minutos / 60) % 24;
+        const m = minutos % 60;
+        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    }
 }
 
 /**
@@ -699,8 +748,14 @@ function inicializarApp() {
  * Eventos de Login e Logout
  */
 function configurarEventosAutenticacao() {
-    formLogin.addEventListener('submit', (e) => {
+    formLogin.addEventListener('submit', async (e) => {
         e.preventDefault();
+        try {
+            await gerenciadorCampanhas.carregarDoServidor();
+        } catch (erro) {
+            alert(`Não foi possível carregar as campanhas persistidas. ${erro.message}`);
+            return;
+        }
         estadoLocal.autenticado = true;
         telaLogin.style.display = 'none';
         telaSistema.style.display = 'flex';
@@ -932,9 +987,14 @@ function renderizarEtapaEscolha() {
     const btnExistente = document.getElementById('btn-escolha-existente');
     if (btnExistente) {
         btnExistente.addEventListener('click', () => {
-            fecharModalCriador();
-            gerenciadorCampanhas.criarNovaCampanha(null);
-            window.navegarAba('investigacao');
+            btnExistente.disabled = true;
+            gerenciadorCampanhas.criarNovaCampanha(null)
+                .then(() => {
+                    fecharModalCriador();
+                    window.navegarAba('investigacao');
+                })
+                .catch(erro => alert(`Não foi possível criar a campanha. ${erro.message}`))
+                .finally(() => { btnExistente.disabled = false; });
         });
     }
 }
@@ -1563,10 +1623,17 @@ function renderizarEtapaTransicao() {
 
     const btnEntrar = document.getElementById('btn-entrar-investigacao');
     if (btnEntrar) {
-        btnEntrar.addEventListener('click', () => {
-            fecharModalCriador();
-            gerenciadorCampanhas.criarNovaCampanha(estadoCriador.dados);
-            window.navegarAba('investigacao');
+        btnEntrar.addEventListener('click', async () => {
+            btnEntrar.disabled = true;
+            try {
+                await gerenciadorCampanhas.criarNovaCampanha(estadoCriador.dados);
+                fecharModalCriador();
+                window.navegarAba('investigacao');
+            } catch (erro) {
+                alert(`Não foi possível criar a campanha. ${erro.message}`);
+            } finally {
+                btnEntrar.disabled = false;
+            }
         });
     }
 }
@@ -1711,17 +1778,18 @@ function renderizarDashboard() {
         abrirCriadorPersonagem();
     };
 
-    window.assumirCaso = (idCaso) => {
-        const campAtiva = gerenciadorCampanhas.campanhaAtiva();
+    window.assumirCaso = async (idCaso) => {
+        const original = gerenciadorCampanhas.campanhaAtiva();
         const casoRef = dadosCasos.find(c => c.id === idCaso);
         if (!casoRef) return;
+        const campAtiva = JSON.parse(JSON.stringify(original));
 
         campAtiva.casoAtivo = { ...casoRef };
         campAtiva.codigo = casoRef.codigo;
         campAtiva.status = 'EM INVESTIGAÇÃO';
         campAtiva.progresso = `${casoRef.codigo} — Em andamento`;
         campAtiva.estadoMundo.localAtual = casoRef.localPrincipal;
-        campAtiva.estadoMundo.horarioAtual = '02:17';
+        campAtiva.estadoMundo.horarioAtual = '03:30';
         campAtiva.estadoMundo.personagensPresentes = [
             `${campAtiva.protagonista.nome} (Protagonista)`,
             'Adrian Hale (Capitão da DCE)',
@@ -1740,16 +1808,36 @@ function renderizarDashboard() {
         campAtiva.eventLog.push({
             tipo: 'ATRIBUICAO_CASO',
             descricao: `Inquérito ${casoRef.codigo} (${casoRef.titulo}) atribuído deliberadamente a ${campAtiva.protagonista.nome}`,
-            horario: '02:17'
+            horario: '03:30'
         });
 
         campAtiva.mensagensCena.push({
             tipo: 'SISTEMA',
             conteudo: `[ DESPACHO DA CENTRAL DCE ]\nINQUÉRITO ATRIBUÍDO: ${casoRef.codigo} — ${casoRef.titulo.toUpperCase()}\nLOCAL: ${casoRef.localPrincipal} // DILIGÊNCIA INICIADA`,
-            horario: '02:17'
+            horario: '03:30'
         });
 
-        gerenciadorCampanhas.sincronizarEstadoLocalComAtiva();
+        const operacao = {
+            chaveOperacao: `assumir-${campAtiva.id}-${gerenciadorCampanhas.versaoDaCampanha(campAtiva.id)}-${casoRef.id}`,
+            versaoEsperada: gerenciadorCampanhas.versaoDaCampanha(campAtiva.id),
+            acao: `Atribuição do inquérito ${casoRef.codigo}`,
+            campanha: campAtiva
+        };
+        try {
+            const resposta = await salvarEstadoCampanha(campAtiva.id, operacao);
+            gerenciadorCampanhas.substituirCampanhaPersistida(resposta.campanha, resposta.versao);
+        } catch (erro) {
+            if (erro instanceof ApiError && erro.status === 409) {
+                try {
+                    await gerenciadorCampanhas.atualizarCampanhaDoServidor(campAtiva.id);
+                } catch (erroAtualizacao) {
+                    alert(`A campanha mudou em outra sessão e não foi possível recarregá-la. ${erroAtualizacao.message}`);
+                    return;
+                }
+            }
+            alert(`O caso não foi atribuído porque a alteração não foi confirmada pelo backend. ${erro.message}`);
+            return;
+        }
         window.navegarAba('investigacao');
     };
 }
@@ -2005,7 +2093,7 @@ function configurarInteracaoTerminal() {
     const btnEnviar = document.getElementById('btn-enviar-acao');
     const historicoBox = document.getElementById('terminal-historico');
     const chipsSugestao = document.querySelectorAll('.btn-chip');
-    const campAtiva = gerenciadorCampanhas.campanhaAtiva();
+    const campanhaId = gerenciadorCampanhas.campanhaAtiva().id;
 
     chipsSugestao.forEach(chip => {
         chip.addEventListener('click', () => {
@@ -2014,47 +2102,87 @@ function configurarInteracaoTerminal() {
         });
     });
 
-    const submeterAcao = () => {
+    const persistirOperacao = async (operacao) => {
+        btnEnviar.disabled = true;
+        btnEnviar.innerHTML = `<span>Salvando...</span>`;
+        try {
+            const resposta = await salvarAcao(campanhaId, operacao);
+            gerenciadorCampanhas.substituirCampanhaPersistida(resposta.campanha, resposta.versao);
+            gerenciadorCampanhas.operacoesPendentes.delete(campanhaId);
+            if (gerenciadorCampanhas.campanhaAtiva().id === campanhaId) {
+                estadoLocal.mensagensCena = [...resposta.campanha.mensagensCena];
+                estadoLocal.pistasDesc = [...resposta.campanha.pistas];
+                estadoLocal.horarioAtual = resposta.campanha.estadoMundo.horarioAtual;
+                estadoLocal.contadorAcoes = resposta.campanha.contadorAcoes;
+                inputAcao.value = '';
+                atualizarRelogioUI();
+                historicoBox.innerHTML = gerarHtmlMensagensCena();
+                historicoBox.scrollTop = historicoBox.scrollHeight;
+            }
+        } catch (erro) {
+            if (erro instanceof ApiError && erro.status === 409) {
+                try {
+                    await gerenciadorCampanhas.atualizarCampanhaDoServidor(campanhaId);
+                    gerenciadorCampanhas.operacoesPendentes.delete(campanhaId);
+                } catch (erroAtualizacao) {
+                    alert(`A campanha mudou em outra sessão e não foi possível recarregá-la. ${erroAtualizacao.message}`);
+                    return;
+                }
+            }
+            alert(`A ação não foi confirmada pelo backend. O estado local foi preservado. ${erro.message}`);
+        } finally {
+            btnEnviar.disabled = false;
+            btnEnviar.innerHTML = `
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                <span>Enviar</span>
+            `;
+        }
+    };
+
+    const submeterAcao = async () => {
+        if (btnEnviar.disabled) return;
+        const operacaoPendente = gerenciadorCampanhas.operacoesPendentes.get(campanhaId);
+        if (operacaoPendente) {
+            inputAcao.value = operacaoPendente.acao;
+            await persistirOperacao(operacaoPendente);
+            return;
+        }
+
         const textoAcao = inputAcao.value.trim();
         if (!textoAcao) return;
 
-        // 1. Registra a ação do protagonista da campanha
+        const original = gerenciadorCampanhas.campanhaAtiva();
+        const campAtiva = JSON.parse(JSON.stringify(original));
+        const operacao = {
+            chaveOperacao: `acao-${campanhaId}-${crypto.randomUUID()}`,
+            versaoEsperada: gerenciadorCampanhas.versaoDaCampanha(campanhaId),
+            acao: textoAcao,
+            campanha: campAtiva
+        };
+        gerenciadorCampanhas.operacoesPendentes.set(campanhaId, operacao);
         campAtiva.mensagensCena.push({
             tipo: 'JOGADOR',
             conteudo: textoAcao,
             horario: campAtiva.estadoMundo.horarioAtual
         });
-
         campAtiva.eventLog.push({
             tipo: 'ACAO_PROTAGONISTA',
             descricao: textoAcao,
             horario: campAtiva.estadoMundo.horarioAtual
         });
 
-        estadoLocal.mensagensCena = [...campAtiva.mensagensCena];
-
-        inputAcao.value = '';
-        historicoBox.innerHTML = gerarHtmlMensagensCena();
-        historicoBox.scrollTop = historicoBox.scrollHeight;
-
         btnEnviar.disabled = true;
         btnEnviar.innerHTML = `<span>Processando...</span>`;
+        await new Promise(resolve => setTimeout(resolve, 600));
 
         // 2. Simula resposta narrativa reativa dependendo se há caso ativo ou se é prólogo
-        setTimeout(() => {
+        {
             campAtiva.contadorAcoes++;
-            estadoLocal.contadorAcoes = campAtiva.contadorAcoes;
             
-            // Avanço de horário de acordo com a campanha
-            if (campAtiva.casoAtivo) {
-                const minutos = 17 + (campAtiva.contadorAcoes * 5);
-                campAtiva.estadoMundo.horarioAtual = `02:${minutos < 10 ? '0' + minutos : minutos}`;
-            } else {
-                const minutos = campAtiva.contadorAcoes * 5;
-                campAtiva.estadoMundo.horarioAtual = `21:${minutos < 10 ? '0' + minutos : minutos}`;
-            }
-            estadoLocal.horarioAtual = campAtiva.estadoMundo.horarioAtual;
-            atualizarRelogioUI();
+            // Avanço determinístico do tempo (substitui cálculo defeituoso anterior)
+            const duracaoAcao = calcularDuracaoAcao(textoAcao);
+            const idAcao = `acao-${campAtiva.id}-${campAtiva.contadorAcoes}`;
+            aplicarAvancoTempo(campAtiva.estadoMundo, duracaoAcao, idAcao);
 
             // Verifica eventos do mundo vivo após o avanço de tempo
             const eventosProcessados = verificarEventosMundo(campAtiva);
@@ -2109,18 +2237,12 @@ function configurarInteracaoTerminal() {
                 descricao: `Resposta narrativa no horário ${campAtiva.estadoMundo.horarioAtual}`,
                 horario: campAtiva.estadoMundo.horarioAtual
             });
-
-            estadoLocal.mensagensCena = [...campAtiva.mensagensCena];
-
-            historicoBox.innerHTML = gerarHtmlMensagensCena();
-            historicoBox.scrollTop = historicoBox.scrollHeight;
-
-            btnEnviar.disabled = false;
-            btnEnviar.innerHTML = `
-                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
-                <span>Enviar</span>
-            `;
-        }, 600);
+            campAtiva.ultimaAtividade = `Hoje, ${campAtiva.estadoMundo.horarioAtual}`;
+            campAtiva.progresso = campAtiva.casoAtivo
+                ? `Ações: ${campAtiva.contadorAcoes} | ${campAtiva.casoAtivo.codigo}`
+                : `Ações: ${campAtiva.contadorAcoes} | Prólogo`;
+        }
+        await persistirOperacao(operacao);
     };
 
     btnEnviar.addEventListener('click', submeterAcao);

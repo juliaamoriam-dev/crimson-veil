@@ -23,7 +23,7 @@ Uma arquitetura profissional é aquela que resolve o problema com robustez e ele
 
 ---
 
-## 2. Stack Tecnológica Proposta para o MVP
+## 2. Stack Tecnológica Implementada no Marco 1
 
 ```text
 ┌────────────────────────────────────────────────────────┐
@@ -35,29 +35,29 @@ Uma arquitetura profissional é aquela que resolve o problema com robustez e ele
                             ▼
 ┌────────────────────────────────────────────────────────┐
 │                   BACKEND (API REST)                   │
-│        Java 21 LTS + Spring Boot 3.x (Spring Web)      │
-│      Spring Data JPA + Bean Validation + Maven         │
+│   Java 21 LTS + Spring Boot 3.4.5 (Web + JDBC)        │
+│        Bean Validation + Maven Wrapper                 │
 └───────────────────────────┬────────────────────────────┘
                             │ JDBC / SQL
                             ▼
 ┌────────────────────────────────────────────────────────┐
 │                BANCO DE DADOS RELACIONAL               │
-│               PostgreSQL + Flyway (Migrations)         │
+│              SQLite (arquivo local)                    │
 └────────────────────────────────────────────────────────┘
 ```
 
 ### 2.1. Backend
 * **Linguagem:** Java 21 (versão LTS com Virtual Threads e estabilidade de longo prazo).
-* **Framework:** Spring Boot 3.x:
-  * `Spring Web`: Para construção de endpoints REST padronizados;
-  * `Spring Data JPA`: Para mapeamento relacional simplificado e redução de código repetitivo de acesso a dados;
-  * `Bean Validation`: Para validação declarativa de entradas (`@NotNull`, `@NotBlank`, etc.);
-  * `Spring Security`: Preparado para ser ativado quando a autenticação entrar no escopo formal.
-* **Gerenciador de Dependências e Build:** **Maven** (recomendado pela clareza declarativa do `pom.xml` e ampla documentação didática).
+* **Framework:** Spring Boot 3.4.5:
+  * `Spring Web`: endpoints REST e entrega local dos arquivos estáticos existentes;
+  * `Spring JDBC`: repositório SQL explícito e transações JDBC compatíveis com SQLite;
+  * `Bean Validation`: validação dos DTOs de entrada.
+* **Gerenciador de Dependências e Build:** Maven 3.9.9 pelo Maven Wrapper versionado.
 
 ### 2.2. Banco de Dados
-* **SGBD:** **PostgreSQL** (líder em confiabilidade relacional, suporte estrito a transações ACID, integridade referencial e suporte a colunas `JSONB` caso snapshots do `WORLD_STATE` demandem semiestruturação).
-* **Versionamento de Schema:** **Flyway** (scripts versionados e auditáveis em `src/main/resources/db/migration/`).
+* **SGBD:** SQLite em arquivo local, sem serviço ou custo operacional.
+* **Driver:** Xerial SQLite JDBC 3.49.1.0.
+* **Schema:** `backend/src/main/resources/schema.sql`, com chaves estrangeiras, restrições, índices e unicidade. Alterações futuras devem ser versionadas como migrations antes de alterar instalações existentes.
 
 ### 2.3. Frontend
 * **Tecnologias:** HTML5 semântico, JavaScript moderno (ES6+ nativo com módulos) e CSS com Tailwind CSS.
@@ -67,7 +67,7 @@ Uma arquitetura profissional é aquela que resolve o problema com robustez e ele
   * Permite criar interfaces elegantes, escuras e cinematográficas com CSS puro e Tailwind sem complexidade arquitetural externa.
 
 ### 2.4. Infraestrutura do MVP
-* Execução local limpa: Spring Boot via Maven (`./mvnw spring-boot:run`), banco PostgreSQL local e assets de frontend servidos estaticamente.
+* Execução local: Spring Boot via Maven Wrapper e banco SQLite em `backend/data/crimson-veil.sqlite`; a aplicação serve a interface existente em `http://localhost:8080`.
 * **Sem** Docker obrigatório, Kubernetes, microsserviços, mensageria assíncrona (RabbitMQ/Kafka) ou Redis nesta fase.
 
 ---
@@ -81,16 +81,16 @@ Controlador (Controller)
        ↓  (recebe DTO de requisição, retorna DTO de resposta)
 Serviço (Service)
        ↓  (aplica regras de negócio, orquestra IA e mutações)
-Repositório (Repository)
-       ↓  (opera Entidades via Spring Data JPA)
-Banco de Dados (PostgreSQL)
+Repositório (Repository / JdbcTemplate)
+       ↓  (SQL transacional)
+Banco de Dados (SQLite)
 ```
 
 ### 3.1. Responsabilidades por Camada
 
 | Camada | Responsabilidade | O que PODE fazer | O que NÃO DEVE fazer |
 | :--- | :--- | :--- | :--- |
-| **Controlador** (`Controller`) | Ponto de entrada HTTP da API REST. | Receber requisições, acionar validações de DTO, delegar ao Service e retornar status HTTP correto (200, 201, 400, 404). | Conter regras de negócio, acessar o banco de dados diretamente ou manipular entidades JPA. |
+| **Controlador** (`Controller`) | Ponto de entrada HTTP da API REST. | Receber requisições, acionar validações de DTO, delegar ao Service e retornar status HTTP correto (200, 201, 400, 404). | Conter regras de negócio, acessar o banco de dados diretamente ou manipular registros persistidos. |
 | **Serviço** (`Service`) | Coração da aplicação (Lógica de Negócio). | Implementar regras do RPG, avançar o relógio de investigação, validar turnos, acionar a IA e atualizar o `WORLD_STATE`. | Manipular objetos `HttpServletRequest`/`HttpServletResponse` ou acoplar-se a protocolos de transporte. |
 | **Repositório** (`Repository`) | Abstração de Acesso a Dados. | Executar consultas SQL/JPQL, persistir entidades e garantir consultas transacionais. | Conter regras de negócio ou validações de domínio. |
 | **Entidade** (`Entity`) | Estado Persistido no Banco. | Mapear tabelas, chaves primárias, relacionamentos e restrições estruturais. | Chamar serviços, repositórios ou depender de DTOs. |
@@ -107,45 +107,13 @@ Banco de Dados (PostgreSQL)
 
 ```text
 backend/src/main/java/com/crimsonveil/
-│
-├── configuracao/               # Configurações do Spring (Cors, OpenAPI/Swagger, etc.)
-│
-├── controlador/                # REST Controllers (expõem a API /api/v1)
-│   ├── CampanhaController.java
-│   ├── CenaController.java
-│   ├── CasoController.java
-│   └── PersonagemController.java
-│
-├── dto/                        # Records de transporte
-│   ├── requisicao/             # Objetos de entrada da API
-│   └── resposta/               # Objetos de saída da API
-│
-├── entidade/                   # Entidades mapeadas com JPA (@Entity)
-│   ├── CampanhaEntity.java
-│   ├── CasoEntity.java
-│   ├── PistaEntity.java
-│   ├── EvidenciaEntity.java
-│   └── WorldStateEntity.java
-│
-├── servico/                    # Lógica de negócio e orquestração
-│   ├── CampanhaService.java
-│   ├── TurnoService.java       # Processamento do turno do jogador
-│   ├── CasoService.java
-│   └── ia/                     # Integração com Inteligência Artificial
-│       ├── MotorNarrativoService.java
-│       ├── ValidadorAgenciaService.java
-│       └── ProvedorIaClient.java
-│
-├── repositorio/                # Interfaces Spring Data JPA
-│   ├── CampanhaRepository.java
-│   ├── CasoRepository.java
-│   └── PistaRepository.java
-│
-└── excecao/                    # Tratamento global de erros (@ControllerAdvice)
-    ├── ErroPadraoDto.java
-    ├── RecursoNaoEncontradoException.java
-    ├── RegraNegocioException.java
-    └── ManipuladorGlobalExcecoes.java
+├── configuration/              # CORS local
+├── controller/                 # Rotas REST /api/v1/campanhas
+├── dto/                        # Contratos de entrada e saída
+├── entity/                     # Registro de campanha
+├── service/                    # Regras, validação e transações
+├── repository/                 # JDBC e persistência SQLite
+└── exception/                  # Erros HTTP padronizados
 ```
 
 ---
@@ -190,15 +158,13 @@ frontend/
 A API adota padrão RESTful, payloads em formato JSON e respostas padronizadas.
 
 ### 6.1. Campanhas
-* **`POST /api/v1/campanhas`**
-  * *Responsabilidade:* Criar uma nova campanha para o usuário.
-  * *Entrada:* `{ "nome": "Campanha Principal", "protagonistaNome": "Milena Ramires" }`
-  * *Saída (201 Created):* `{ "id": "uuid", "nome": "...", "status": "ATIVA", "criadaEm": "..." }`
-* **`GET /api/v1/campanhas`**
-  * *Responsabilidade:* Listar todas as campanhas do usuário autenticado.
-  * *Saída (200 OK):* Array de campanhas resumidas.
-* **`GET /api/v1/campanhas/{id}`**
-  * *Responsabilidade:* Obter detalhes e status da campanha selecionada.
+* **`POST /api/v1/campanhas`** — cria campanha a partir do snapshot atual do criador de campanha; retorna `201`.
+* **`GET /api/v1/campanhas`** — lista resumos das campanhas locais.
+* **`GET /api/v1/campanhas/{id}`** — carrega o snapshot persistido e sua versão.
+* **`POST /api/v1/campanhas/migracao-canonica`** — cria `camp-001` apenas se não existir; nova tentativa retorna o registro atual sem sobrescrevê-lo.
+* **`POST /api/v1/campanhas/{id}/acoes`** — registra uma ação com chave idempotente e versão esperada.
+* **`PUT /api/v1/campanhas/{id}/estado`** — salva mutação validada do estado com controle otimista de versão.
+* **`GET /api/v1/campanhas/{id}/historico`** — consulta registros auditáveis de criação e alterações.
 
 ### 6.2. Cenas e Execução de Turnos (Tela de RPG)
 * **`GET /api/v1/campanhas/{id}/cenas/atual`**
@@ -229,19 +195,19 @@ A API adota padrão RESTful, payloads em formato JSON e respostas padronizadas.
 ### 6.5. Linha do Tempo e Estado do Mundo
 * **`GET /api/v1/campanhas/{id}/timeline`**
   * *Responsabilidade:* Retornar a sequência cronológica dos eventos registrados.
-* **`GET /api/v1/campanhas/{id}/estado-mundo`**
-  * *Responsabilidade:* Obter o snapshot do `WORLD_STATE` da campanha para atualização da interface.
+* O estado do mundo é carregado junto ao agregado; data, horário, localização e contador vêm das colunas tipadas em `world_state`.
 
 ---
 
 ## 7. Estratégia de Persistência e Banco de Dados
 
-> *Nota:* A estrutura exata de tabelas e DDL permanece preservada em [docs/BANCO_DE_DADOS.md](file:///d:/CrimsonVeil/docs/BANCO_DE_DADOS.md) para a fase de modelagem física.
+> O esquema físico implantado está descrito em [docs/BANCO_DE_DADOS.md](./BANCO_DE_DADOS.md).
 
 ### Diretrizes Gerais:
-1. **Integridade Referencial Forte:** Casos, Evidências, Personagens e Cenas mantêm chaves estrangeiras (`FK`) estritas com a `Campanha`, impedindo registros órfãos.
-2. **Controle Transacional:** O método de execução de turno é envolvido em `@Transactional` (ou tudo é gravado — resposta da IA, avanço de tempo, novas pistas — ou nada é alterado em caso de falha).
-3. **Imutabilidade de Evidências:** Evidências registradas não sofrem `DELETE` físico na aplicação.
+1. **Agregado por campanha:** o snapshot serializado preserva as estruturas e identidades atuais do domínio.
+2. **WORLD_STATE relacional:** data, horário, localização e contador usam colunas tipadas; o restante permanece em JSON.
+3. **Transação:** campanha, WORLD_STATE, eventos, operação e histórico são gravados atomicamente.
+4. **Idempotência e concorrência:** unicidade por operação e versão otimista bloqueiam repetições e atualizações obsoletas.
 
 ---
 
@@ -253,7 +219,7 @@ O `WORLD_STATE` é o registro consolidado do momento presente da campanha.
 * **Pertencimento:** Pertence exclusivamente a uma `Campanha` (1 : 1).
 * **Modificação:** Modificado de forma atômica e exclusiva pelo `TurnoService` ao término da validação de cada turno.
 * **Consulta:** Consultado pelo `MotorNarrativoService` para injeção de contexto na IA e pela interface web para exibição do relógio/local.
-* **Proposta Arquitetural Preliminar:** Tabela `world_state` vinculada à campanha com atributos-chave colunarmente tipados (`current_date`, `current_time`, `current_location_id`, `active_case_id`) e um campo complementar `contexto_dinamico` em formato `JSONB` no PostgreSQL para variáveis contextuais flexíveis.
+* **Implementado:** tabela `world_state` por campanha com data, horário, localização e contador tipados; `state_json` mantém os atributos contextuais em JSON.
 
 ---
 
@@ -350,11 +316,10 @@ Para manter a simplicidade técnica:
 * API RESTful com versionamento unificado sob `/api/v1`.
 * Agência absoluta da protagonista validada antes da entrega da resposta à usuária.
 
-### 13.2. Propostas Arquiteturais (Aguardando Validação)
-* Stack Backend: Java 21 LTS + Spring Boot 3 + Maven.
-* SGBD: PostgreSQL com Flyway para versionamento de migrations.
-* Stack Frontend: HTML5 + CSS Vanilla / Tailwind CSS + JavaScript modular nativo.
-* Snapshot do `WORLD_STATE` em modelo híbrido (colunar para chaves principais + `JSONB` para contexto aberto).
+### 13.2. Decisões do Marco 1
+* Backend local: Java 21 + Spring Boot 3.4.5 + Maven Wrapper.
+* Persistência inicial: SQLite com `JdbcTemplate`, snapshot JSON e colunas tipadas do WORLD_STATE.
+* Integração HTTP/JSON sem IA, hospedagem ou serviço pago obrigatório.
 
 ### 13.3. Itens que Permanecem `A DEFINIR`
 * Provedor e modelo específico de IA (OpenAI, Gemini, local, etc.).

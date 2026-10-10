@@ -12,7 +12,7 @@ O projeto é desenvolvido com foco em Engenharia de Software, combinando conceit
 
 ## 📌 Status do Projeto
 
-O projeto encontra-se em desenvolvimento incremental. Atualmente, conta com um **protótipo funcional completo no frontend** para validação prática das regras de domínio, mecânicas investigativas e motor narrativo, preparando o terreno para a implementação do backend definitivo.
+O projeto evolui por marcos incrementais. O Marco 1 adiciona backend local e persistência real, mantendo o frontend e o conteúdo canônico existentes.
 
 | Componente / Módulo | Status | Detalhes |
 | :--- | :--- | :--- |
@@ -23,8 +23,8 @@ O projeto encontra-se em desenvolvimento incremental. Atualmente, conta com um *
 | **Sistema de Consequências** | 🟢 Implementado v1 | Desdobramentos objetivos no mundo a partir de eventos e atrasos |
 | **Dossiê Investigativo** | 🟢 Funcional | Gestão de casos, suspeitos, pistas, laudos e evidências |
 | **Timeline e Logs** | 🟢 Implementado | Registro cronológico contínuo e Event Log interno auditável |
-| **Backend (API REST)** | 🟡 Planejado | Arquitetura em camadas com Java 21 e Spring Boot 3.x |
-| **Banco de Dados** | 🟡 Planejado | PostgreSQL com controle de versões via Flyway |
+| **Backend (API REST)** | 🟢 Implementado no Marco 1 | Java 21, Spring Boot 3.4.5; campanhas, estado, ações e histórico |
+| **Banco de Dados** | 🟢 Implementado no Marco 1 | SQLite local, transações e chaves idempotentes |
 | **Integração com LLM Externa** | 🔵 Futuro | IA consultiva integrada via API, sem autonomia sobre regras do sistema |
 
 ---
@@ -101,7 +101,7 @@ Tempo Avança ──► Eventos Autônomos ──► Mudanças no Mundo ──�
 
 O sistema é desenhado em duas camadas conceituais: **Experiência** (interface e controle de turnos) e **Sistema** (regras, persistência e memória).
 
-### 1. Arquitetura Atual (Protótipo Funcional em Execução)
+### 1. Arquitetura Atual (Frontend e Backend Local)
 
 Atualmente implementada no frontend para validação ágil de domínio e interatividade:
 
@@ -110,25 +110,23 @@ Atualmente implementada no frontend para validação ágil de domínio e interat
 │                   FRONTEND (Web UI)                    │
 │      Interface Modular • Gestão de Telas e Abas        │
 └───────────────────────────┬────────────────────────────┘
-                            │ Chamadas locais síncronas
+                            │ HTTP / JSON
                             ▼
 ┌────────────────────────────────────────────────────────┐
-│             NARRATIVE ENGINE & MUNDO VIVO              │
-│       Controle de Turnos • Eventos Autônomos           │
-│     Consequências Ativas • Sanitização de Agência      │
+│             API REST Spring Boot                       │
+│ Controllers • Services • Repositories JDBC             │
 └───────────────────────────┬────────────────────────────┘
-                            │ Atualização de estado
+                            │ Transação SQLite
                             ▼
 ┌────────────────────────────────────────────────────────┐
-│                   WORLD_STATE LOCAL                    │
-│      Campanhas Isoladas • Relógio • Memória            │
-│         Dossiês de Pistas, Casos e Evidências          │
+│              campaign + world_state                    │
+│       events • operations • campaign_history           │
 └────────────────────────────────────────────────────────┘
 ```
 
-### 2. Arquitetura Planejada (Backend Definitivo em Camadas)
+O motor narrativo local existente continua responsável pelas respostas simuladas; ainda não há integração com IA nem autonomia completa de NPCs.
 
-A ser construída a partir da Fase 5 para sustentar persistência perene e multiusuário:
+### 2. Próximas Evoluções
 
 ```text
 ┌────────────────────────────────────────────────────────┐
@@ -138,27 +136,9 @@ A ser construída a partir da Fase 5 para sustentar persistência perene e multi
                             │ HTTP / JSON (REST API)
                             ▼
 ┌────────────────────────────────────────────────────────┐
-│             CONTROLADORES (Controllers REST)           │
-│       Rotas de Campanhas, Turnos, Casos e Ações        │
-└───────────────────────────┬────────────────────────────┘
-                            │ DTOs validados
-                            ▼
-┌────────────────────────────────────────────────────────┐
-│              SERVIÇOS DE DOMÍNIO (Services)            │
-│        Motor de Turnos • Gestão de WORLD_STATE         │
-│     Orquestrador de IA • Máquina de Consequências      │
-└───────────────────────────┬────────────────────────────┘
-                            │ Entidades de Domínio
-                            ▼
-┌────────────────────────────────────────────────────────┐
-│               REPOSITÓRIOS (Spring Data JPA)           │
-│        Acesso a Dados • Consultas Transacionais        │
-└───────────────────────────┬────────────────────────────┘
-                            │ SQL / JDBC
-                            ▼
-┌────────────────────────────────────────────────────────┐
-│              BANCO DE DADOS (PostgreSQL)               │
-│        Esquema Relacional Versionado via Flyway        │
+│       Motor de mundo e narrativa validados             │
+│       Integração futura com IA opcional                 │
+│       Migrações de banco para evolução do schema        │
 └────────────────────────────────────────────────────────┘
 ```
 
@@ -170,12 +150,11 @@ A ser construída a partir da Fase 5 para sustentar persistência perene e multi
 * **Linguagens e Estrutura:** HTML5 Semântico, CSS3 Moderno (Vanilla CSS com Design System cinematográfico escuro), JavaScript Moderno (ES6+ modular).
 * **Controle de Versão:** Git e repositório estruturado no GitHub.
 
-### Planejadas para o Backend (Stack Oficial)
+### Backend implementado no Marco 1
 * **Linguagem & Plataforma:** Java 21 (LTS)
-* **Framework:** Spring Boot 3.x (`Spring Web`, `Spring Data JPA`, `Bean Validation`)
-* **Gerenciador de Dependências:** Apache Maven
-* **Banco de Dados:** PostgreSQL
-* **Versionamento de Banco:** Flyway Migrations
+* **Framework:** Spring Boot 3.4.5 (`Spring Web`, `Spring JDBC`, `Bean Validation`)
+* **Build:** Apache Maven 3.9.9 via Maven Wrapper
+* **Banco de Dados:** SQLite com JDBC
 * **Comunicação:** API REST padronizada via contratos JSON
 
 ---
@@ -197,7 +176,7 @@ crimson-veil/
 │   ├── css/                # Folhas de estilo (design system escuro)
 │   ├── js/                 # Lógica de aplicação, Narrative Engine e Mundo Vivo
 │   └── assets/             # Recursos estáticos e imagens oficiais
-├── backend/            # Estrutura preparatória para a API Spring Boot
+├── backend/            # API Spring Boot, testes e banco SQLite local ignorado pelo Git
 ├── conhecimento/       # Catálogo do universo (Lore, Casos, Pistas, Personagens)
 ├── .gitignore          # Arquivos e diretórios ignorados pelo Git
 └── README.md           # Apresentação do projeto e guia geral
@@ -219,8 +198,8 @@ crimson-veil/
 | **Timeline e Event Log** | ✅ | Linha temporal cronológica e log de eventos auditável |
 | **Interface e Design Escuro** | ✅ | Layout imersivo em tons escuros e carmesim com abas de trabalho |
 | **Refinamento de Tom Narrativo**| 🚧 | Calibração de diálogos mais naturais e ritmo de série policial |
-| **API REST (Spring Boot)** | 📋 | Backend em camadas e serialização do motor de regras |
-| **Persistência Relacional** | 📋 | Armazenamento de campanhas e snapshots de `WORLD_STATE` no PostgreSQL |
+| **API REST (Spring Boot)** | ✅ | Backend em camadas com campanhas, ações, mutações e histórico |
+| **Persistência Relacional** | ✅ | SQLite local com snapshots, estado do mundo e operações idempotentes |
 | **Conexão com LLM Externa** | 📋 | Envio seletivo de contexto e geração guiada por prompts parametrizados |
 
 ---
@@ -231,31 +210,32 @@ crimson-veil/
 
 ---
 
-## 🚀 Como Executar o Protótipo
-
-Como o protótipo atual opera integralmente no frontend com tecnologias web nativas, não é necessário compilar ou instalar dependências pesadas.
+## 🚀 Como Executar Localmente no Windows
 
 ### Pré-requisitos
 * Um navegador web moderno (Chrome, Firefox, Edge).
-* Um servidor HTTP estático local (para evitar bloqueios de CORS ao carregar módulos e assets).
+* Java 21; Maven é baixado localmente pelo wrapper na primeira execução.
+* Node.js somente para executar os testes do frontend.
 
-### Execução via Python (Recomendado)
-No terminal, dentro do diretório raiz do projeto:
+No PowerShell, a partir da raiz do repositório:
 
-```bash
-python -m http.server 8080 --directory frontend
+```powershell
+$javaExe = (Get-Command java).Source
+$env:JAVA_HOME = Split-Path (Split-Path $javaExe)
+Set-Location backend
+.\mvnw.cmd spring-boot:run
 ```
 
-### Execução via Node.js
-Alternativamente, caso prefira o ambiente Node:
+Abra `http://localhost:8080`. O Spring Boot serve a interface e a API na mesma origem. O arquivo local é `backend\data\crimson-veil.sqlite`; sua preservação está documentada em [docs/BANCO_DE_DADOS.md](docs/BANCO_DE_DADOS.md).
 
-```bash
-npx serve frontend -l 8080
-```
+Testes:
 
-Após iniciar o servidor, abra no navegador:
-```text
-http://localhost:8080
+```powershell
+# Na raiz do repositório
+node --test test/*.test.js
+
+# Em backend\
+.\mvnw.cmd test
 ```
 
 ---
@@ -273,8 +253,8 @@ Planejamento consolidado a partir do [docs/ROADMAP.md](docs/ROADMAP.md):
   - [x] Narrative Engine e agência da jogadora
   - [x] Motor de Mundo Vivo e eventos temporais
   - [x] Sistema de Consequências v1
-- [ ] **Fase 5 — Backend & API REST:** Construção dos controladores, serviços e DTOs em Spring Boot.
-- [ ] **Fase 6 — Persistência Relacional:** Implementação do banco de dados PostgreSQL e migrações Flyway.
+- [x] **Marco 1 — Backend e Persistência Real:** API REST Spring Boot, SQLite, integração frontend, migração canônica e testes automatizados.
+- [ ] **Próximo — Evolução do Motor:** Migrações versionadas, regras de turno no backend e expansão dos testes.
 - [ ] **Fase 7 — Inteligência Artificial Integrada:** Integração com LLM e injeção de contexto dos 4 níveis de memória.
 - [ ] **Fase 8 — Refinamento e Testes:** Testes integrados, segurança, refinamento visual e usabilidade.
 - [ ] **Fase 9 — Deploy e Infraestrutura:** Empacotamento de produção e publicação em ambiente de nuvem.
@@ -319,7 +299,8 @@ Para se aprofundar nas decisões de engenharia e modelagem do sistema:
 * [docs/REQUISITOS.md](docs/REQUISITOS.md) — Matriz de requisitos funcionais, narrativos e não funcionais.
 * [docs/MODELO_DE_DOMINIO.md](docs/MODELO_DE_DOMINIO.md) — Modelagem conceitual de entidades, Value Objects e agregados.
 * [docs/ARQUITETURA.md](docs/ARQUITETURA.md) — Decisões arquiteturais, camadas e stack tecnológica.
-* [docs/BANCO_DE_DADOS.md](docs/BANCO_DE_DADOS.md) — Estrutura preliminar de entidades e persistência.
+* [docs/BANCO_DE_DADOS.md](docs/BANCO_DE_DADOS.md) — Esquema SQLite, migração canônica e preservação.
+* [docs/GUIA_EXECUCAO_LOCAL.md](docs/GUIA_EXECUCAO_LOCAL.md) — Configuração e comandos detalhados para Windows.
 * [docs/ROADMAP.md](docs/ROADMAP.md) — Fases de evolução e marcos do projeto.
 
 ---

@@ -1,0 +1,16 @@
+{
+  "name": "crimson-veil",
+  "version": "1.0.0",
+  "description": "Crimson Veil — RPG Narrativo Investigativo de Mundo Vivo",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/**/*.test.js"
+  },
+  "keywords": [
+    "rpg",
+    "investigacao",
+    "crimson-veil"
+  ],
+  "author": "Julia Amorim",
+  "license": "UNLICENSED"
+}

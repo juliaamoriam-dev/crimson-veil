@@ -4,9 +4,12 @@
 *.env.*
 !.env.example
 
-# Logs
+# Logs e backups locais
 *.log
 logs/
+*.zip
+*.bundle
+*.tar.gz
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -17,6 +20,8 @@ dist/
 build/
 out/
 target/
+backend/data/*.sqlite*
+backend/data/*.db*
 bin/
 obj/
 *.class
