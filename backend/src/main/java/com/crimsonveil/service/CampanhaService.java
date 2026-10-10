@@ -5,6 +5,7 @@ import com.crimsonveil.dto.CampanhaResposta;
 import com.crimsonveil.dto.CampanhaResumoResposta;
 import com.crimsonveil.dto.HistoricoCampanhaResposta;
 import com.crimsonveil.dto.MutacaoCampanhaRequest;
+import com.crimsonveil.dto.ReiniciarCampanhaRequest;
 import com.crimsonveil.entity.CampanhaRegistro;
 import com.crimsonveil.exception.CampanhaNaoEncontradaException;
 import com.crimsonveil.exception.ConflitoVersaoException;
@@ -27,10 +28,12 @@ public class CampanhaService {
     private static final String CAMPANHA_CANONICA_ID = "camp-001";
     private final CampanhaRepository repository;
     private final ObjectMapper mapper;
+    private final PersonagemService personagemService;
 
-    public CampanhaService(CampanhaRepository repository, ObjectMapper mapper) {
+    public CampanhaService(CampanhaRepository repository, ObjectMapper mapper, PersonagemService personagemService) {
         this.repository = repository;
         this.mapper = mapper;
+        this.personagemService = personagemService;
     }
 
     public List<CampanhaResumoResposta> listar() {
@@ -51,10 +54,12 @@ public class CampanhaService {
     public CampanhaResposta criar(CampanhaCriacaoRequest request) {
         validarSnapshot(request.id(), request.campanha());
         String now = Instant.now().toString();
-        CampanhaResposta resposta = new CampanhaResposta(request.campanha(), 1, false);
+        Map<String, Object> campanha = personagemService.assegurarEAplicarPerfil(request.campanha());
+        CampanhaResposta resposta = new CampanhaResposta(campanha, 1, false);
         repository.criar(request.id(), request.titulo(), texto(request.campanha().get("codigo")),
-                texto(request.campanha().get("status")), serializar(request.campanha()), now);
-        persistirComplementos(request.id(), request.campanha());
+                texto(request.campanha().get("status")), serializar(campanha), now);
+        repository.salvarEstadoInicialSeAusente(request.id(), serializar(campanha), now);
+        persistirComplementos(request.id(), campanha);
         repository.salvarOperacao(request.id(), "criacao-" + request.id(), "CAMPANHA_CRIADA", "",
                 serializarResposta(resposta), now);
         repository.salvarHistorico(request.id(), "criacao-" + request.id(), "CAMPANHA_CRIADA",
@@ -89,6 +94,51 @@ public class CampanhaService {
     @Transactional
     public CampanhaResposta registrarAcao(String id, MutacaoCampanhaRequest request) {
         return mutar(id, request, "ACAO_JOGADOR", true);
+    }
+
+    @Transactional
+    public CampanhaResposta reiniciar(String id, ReiniciarCampanhaRequest request) {
+        Optional<String> repetida = repository.buscarOperacao(id, request.chaveOperacao());
+        if (repetida.isPresent()) {
+            CampanhaResposta original = lerResposta(repetida.get());
+            return new CampanhaResposta(original.campanha(), original.versao(), true);
+        }
+
+        CampanhaRegistro atual = buscarObrigatoria(id);
+        if (atual.versao() != request.versaoEsperada()) {
+            throw new ConflitoVersaoException(id);
+        }
+
+        Map<String, Object> inicial = repository.buscarEstadoInicial(id)
+                .orElseGet(request::campanhaInicial);
+        validarSnapshot(id, inicial);
+        Map<?, ?> protagonistaAtual = (Map<?, ?>) atual.campanha().get("protagonista");
+        Map<?, ?> protagonistaInicial = (Map<?, ?>) inicial.get("protagonista");
+        if (!protagonistaAtual.get("id").equals(protagonistaInicial.get("id"))) {
+            throw new RegraCampanhaException("O reinício precisa manter a mesma personagem da campanha.");
+        }
+        if (CAMPANHA_CANONICA_ID.equals(id)
+                && (!(inicial.get("casoAtivo") instanceof Map<?, ?> caso)
+                || !"caso-001".equals(caso.get("id")))) {
+            throw new RegraCampanhaException("O reinício canônico precisa usar o estado inicial do Caso 001.");
+        }
+
+        Map<String, Object> campanhaInicial = personagemService.assegurarEAplicarPerfil(inicial);
+        String now = Instant.now().toString();
+        repository.salvarEstadoInicialSeAusente(id, serializar(campanhaInicial), now);
+        long novaVersao = atual.versao() + 1;
+        if (repository.reiniciar(id, atual.versao(), texto(campanhaInicial.get("titulo")),
+                texto(campanhaInicial.get("codigo")), texto(campanhaInicial.get("status")),
+                serializar(campanhaInicial), now) != 1) {
+            throw new ConflitoVersaoException(id);
+        }
+        repository.limparProgresso(id);
+        persistirComplementos(id, campanhaInicial);
+
+        CampanhaResposta resposta = new CampanhaResposta(campanhaInicial, novaVersao, false);
+        repository.salvarOperacao(id, request.chaveOperacao(), "CAMPANHA_REINICIADA", "",
+                serializarResposta(resposta), now);
+        return resposta;
     }
 
     private CampanhaResposta mutar(String id, MutacaoCampanhaRequest request, String type, boolean action) {
@@ -221,7 +271,11 @@ public class CampanhaService {
     }
 
     private CampanhaRegistro buscarObrigatoria(String id) {
-        return repository.buscar(id).orElseThrow(() -> new CampanhaNaoEncontradaException(id));
+        CampanhaRegistro registro = repository.buscar(id)
+                .orElseThrow(() -> new CampanhaNaoEncontradaException(id));
+        Map<String, Object> campanha = personagemService.assegurarEAplicarPerfil(registro.campanha());
+        return new CampanhaRegistro(registro.id(), registro.titulo(), registro.codigo(), registro.status(),
+                campanha, registro.versao(), registro.criadaEm(), registro.atualizadaEm());
     }
 
     private String dataAtual(Map<String, Object> campaign) {

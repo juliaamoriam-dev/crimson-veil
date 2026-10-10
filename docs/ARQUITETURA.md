@@ -163,8 +163,10 @@ A API adota padrão RESTful, payloads em formato JSON e respostas padronizadas.
 * **`GET /api/v1/campanhas/{id}`** — carrega o snapshot persistido e sua versão.
 * **`POST /api/v1/campanhas/migracao-canonica`** — cria `camp-001` apenas se não existir; nova tentativa retorna o registro atual sem sobrescrevê-lo.
 * **`POST /api/v1/campanhas/{id}/acoes`** — registra uma ação com chave idempotente e versão esperada.
+* **`POST /api/v1/campanhas/{id}/reiniciar`** — restaura snapshot inicial e progresso da campanha em uma transação, mantendo personagem/perfil e retornando uma nova versão.
 * **`PUT /api/v1/campanhas/{id}/estado`** — salva mutação validada do estado com controle otimista de versão.
 * **`GET /api/v1/campanhas/{id}/historico`** — consulta registros auditáveis de criação e alterações.
+* **`GET /api/v1/personagens/{id}/perfil`**, `PUT`/`GET`/`DELETE /api/v1/personagens/{id}/imagem` — perfil independente e imagem persistente da personagem.
 
 ### 6.2. Cenas e Execução de Turnos (Tela de RPG)
 * **`GET /api/v1/campanhas/{id}/cenas/atual`**
@@ -208,6 +210,19 @@ A API adota padrão RESTful, payloads em formato JSON e respostas padronizadas.
 2. **WORLD_STATE relacional:** data, horário, localização e contador usam colunas tipadas; o restante permanece em JSON.
 3. **Transação:** campanha, WORLD_STATE, eventos, operação e histórico são gravados atomicamente.
 4. **Idempotência e concorrência:** unicidade por operação e versão otimista bloqueiam repetições e atualizações obsoletas.
+5. **Celular relacional:** contatos, conversas e mensagens pertencem à campanha e à protagonista em tabelas próprias; não são duplicados no snapshot. Cada mutação participa do controle de versão da campanha, e o horário ficcional é obtido do `world_state` sem avançá-lo.
+6. **Personagem independente:** `character_profiles` guarda perfil e imagem em SQLite, separado dos snapshots de campanha; várias campanhas podem apontar ao mesmo identificador de personagem.
+7. **Início reproduzível:** `campaign_initial_states` mantém o snapshot original para reinícios futuros. A operação limpa somente os dados de progresso com escopo da campanha e é transacional/versionada.
+
+### 7.1. Celular persistente (Marco 2, entrega 1)
+
+O recurso `/api/v1/campanhas/{id}/celular` usa `CelularController`, `CelularService` e `CelularRepository`. `campaign_contacts` guarda contatos e associação canônica opcional; `campaign_conversations` guarda uma conversa individual por contato; `campaign_messages` guarda conteúdo, direção, data/hora ficcionais, leitura e chave idempotente. As chaves estrangeiras compostas impedem cruzar campanha, protagonista, contato ou conversa. O frontend carrega o recurso ao abrir o celular e atualiza o estado visível somente após resposta confirmada.
+
+O envio normal é feito por `POST .../contatos/{contatoId}/mensagens`; leitura é atualizada por `PATCH .../conversas/{conversaId}/leitura`. O endpoint `.../mensagens-recebidas-teste` existe apenas no perfil local `development`; o frontend não o chama. Não há geração espontânea, autonomia de NPCs ou IA nesta entrega. O esquema é aditivo e não modifica campanhas existentes.
+
+### 7.2. Perfil compartilhado e reinício
+
+`PersonagemController`/`PersonagemService`/`PersonagemRepository` gerenciam o perfil e os bytes de imagem, com validação de formato e tamanho antes de persistir o BLOB. O cabeçalho e as campanhas carregadas usam o mesmo perfil por `character_id`. No painel Visão Geral, o jogador pode iniciar campanha independente com a personagem atual ou reiniciar apenas uma campanha; histórico, contatos e mensagens antigos são removidos junto ao estado antigo somente dentro do escopo daquele `campaign_id`. Em caso de erro, a transação restaura o estado anterior.
 
 ---
 

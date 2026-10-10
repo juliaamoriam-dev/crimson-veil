@@ -217,6 +217,16 @@ class CampanhaApiIntegrationTest {
         assertEquals(4, repeated.getBody().path("campanha").path("contadorAcoes").asInt());
     }
 
+    @Test
+    void endpointDeRecebimentoDeTesteNaoExisteForaDoPerfilDevelopment() {
+        ResponseEntity<String> response = http.postForEntity(
+                url("/api/v1/campanhas/camp-001/celular/contatos/contact-1/mensagens-recebidas-teste"),
+                Map.of("chaveOperacao", "dev-only", "versaoEsperada", 1, "conteudo", "Teste"),
+                String.class
+        );
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+    }
+
     private void criar(String id) {
         Map<String, Object> campaign = campanha(id, "14 de Outubro de 2026", "03:30", 0);
         http.postForEntity(url("/api/v1/campanhas"),

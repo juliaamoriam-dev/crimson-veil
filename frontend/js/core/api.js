@@ -83,3 +83,99 @@ export function salvarEstadoCampanha(id, operacao) {
         body: JSON.stringify(operacao)
     });
 }
+
+export function reiniciarCampanha(id, operacao) {
+    return requisicao(`/campanhas/${encodeURIComponent(id)}/reiniciar`, {
+        method: 'POST',
+        headers: { 'Idempotency-Key': operacao.chaveOperacao },
+        body: JSON.stringify(operacao)
+    });
+}
+
+export function urlImagemPersonagem(personagemId) {
+    return `${API_BASE_URL}/personagens/${encodeURIComponent(personagemId)}/imagem`;
+}
+
+export function carregarPerfilPersonagem(personagemId) {
+    return requisicao(`/personagens/${encodeURIComponent(personagemId)}/perfil`);
+}
+
+export async function salvarImagemPersonagem(personagemId, arquivo) {
+    let resposta;
+    try {
+        const corpo = new FormData();
+        corpo.append('arquivo', arquivo);
+        resposta = await fetch(urlImagemPersonagem(personagemId), {
+            method: 'PUT',
+            body: corpo
+        });
+    } catch (erro) {
+        throw new ApiError(`Não foi possível enviar a imagem: ${erro.message}`);
+    }
+    return lerRespostaImagem(resposta);
+}
+
+export async function removerImagemPersonagem(personagemId) {
+    let resposta;
+    try {
+        resposta = await fetch(urlImagemPersonagem(personagemId), { method: 'DELETE' });
+    } catch (erro) {
+        throw new ApiError(`Não foi possível remover a imagem: ${erro.message}`);
+    }
+    return lerRespostaImagem(resposta);
+}
+
+async function lerRespostaImagem(resposta) {
+    let corpo;
+    try {
+        corpo = await resposta.json();
+    } catch {
+        throw new ApiError(`O backend retornou uma resposta inválida (HTTP ${resposta.status}).`, resposta.status);
+    }
+    if (!resposta.ok) {
+        throw new ApiError(
+            corpo.mensagem || `A operação falhou (HTTP ${resposta.status}).`,
+            resposta.status
+        );
+    }
+    return corpo;
+}
+
+export function listarContatosCelular(campanhaId) {
+    return requisicao(`/campanhas/${encodeURIComponent(campanhaId)}/celular/contatos`);
+}
+
+export function criarContatoCelular(campanhaId, contato) {
+    return requisicao(`/campanhas/${encodeURIComponent(campanhaId)}/celular/contatos`, {
+        method: 'POST',
+        headers: { 'Idempotency-Key': contato.chaveOperacao },
+        body: JSON.stringify(contato)
+    });
+}
+
+export function listarMensagensCelular(campanhaId, contatoId) {
+    return requisicao(
+        `/campanhas/${encodeURIComponent(campanhaId)}/celular/contatos/${encodeURIComponent(contatoId)}/mensagens`
+    );
+}
+
+export function enviarMensagemCelular(campanhaId, contatoId, mensagem) {
+    return requisicao(
+        `/campanhas/${encodeURIComponent(campanhaId)}/celular/contatos/${encodeURIComponent(contatoId)}/mensagens`,
+        {
+            method: 'POST',
+            headers: { 'Idempotency-Key': mensagem.chaveOperacao },
+            body: JSON.stringify(mensagem)
+        }
+    );
+}
+
+export function marcarMensagensCelularComoLidas(campanhaId, conversaId, leitura) {
+    return requisicao(
+        `/campanhas/${encodeURIComponent(campanhaId)}/celular/conversas/${encodeURIComponent(conversaId)}/leitura`,
+        {
+            method: 'PATCH',
+            body: JSON.stringify(leitura)
+        }
+    );
+}

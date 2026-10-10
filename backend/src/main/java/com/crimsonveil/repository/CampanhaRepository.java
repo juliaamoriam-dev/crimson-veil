@@ -66,6 +66,30 @@ public class CampanhaRepository {
                 """, id, title, code, status, campaignJson, now, now);
     }
 
+    public void salvarEstadoInicialSeAusente(String campaignId, String campaignJson, String now) {
+        jdbc.update("""
+                INSERT OR IGNORE INTO campaign_initial_states (campaign_id, initial_json, created_at)
+                VALUES (?, ?, ?)
+                """, campaignId, campaignJson, now);
+    }
+
+    public Optional<Map<String, Object>> buscarEstadoInicial(String campaignId) {
+        return jdbc.query("""
+                SELECT initial_json FROM campaign_initial_states WHERE campaign_id = ?
+                """, rs -> rs.next() ? Optional.of(lerJson(rs.getString(1))) : Optional.empty(), campaignId);
+    }
+
+    public void limparProgresso(String campaignId) {
+        jdbc.update("DELETE FROM campaign_events WHERE campaign_id = ?", campaignId);
+        jdbc.update("DELETE FROM campaign_contacts WHERE campaign_id = ?", campaignId);
+        jdbc.update("DELETE FROM campaign_operations WHERE campaign_id = ?", campaignId);
+    }
+
+    public int reiniciar(String id, long expectedVersion, String title, String code, String status,
+                         String campaignJson, String now) {
+        return atualizar(id, expectedVersion, title, code, status, campaignJson, now);
+    }
+
     public int atualizar(String id, long expectedVersion, String title, String code, String status,
                          String campaignJson, String now) {
         return jdbc.update("""

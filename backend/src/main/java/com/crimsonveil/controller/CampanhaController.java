@@ -5,6 +5,7 @@ import com.crimsonveil.dto.CampanhaResposta;
 import com.crimsonveil.dto.CampanhaResumoResposta;
 import com.crimsonveil.dto.HistoricoCampanhaResposta;
 import com.crimsonveil.dto.MutacaoCampanhaRequest;
+import com.crimsonveil.dto.ReiniciarCampanhaRequest;
 import com.crimsonveil.service.CampanhaService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -64,5 +65,11 @@ public class CampanhaController {
     public CampanhaResposta registrarAcao(@PathVariable String id,
                                           @Valid @RequestBody MutacaoCampanhaRequest request) {
         return service.registrarAcao(id, request);
+    }
+
+    @PostMapping("/{id}/reiniciar")
+    public CampanhaResposta reiniciar(@PathVariable String id,
+                                      @Valid @RequestBody ReiniciarCampanhaRequest request) {
+        return service.reiniciar(id, request);
     }
 }

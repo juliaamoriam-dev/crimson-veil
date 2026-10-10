@@ -47,4 +47,11 @@ Este documento apresenta as fases de evolução do projeto Crimson Veil. As tare
 * **Status:** Concluído e validado localmente.
 * **Escopo:** API REST em Java 21/Spring Boot, persistência SQLite, migração inicial protegida de `camp-001`, ações e histórico idempotentes, controle otimista de versão e integração sem alteração visual do frontend.
 * **Fora do escopo:** IA, autonomia completa de NPCs, autenticação e hospedagem.
-* **Próximo marco:** Não iniciado; depende de decisão e planejamento próprios.
+* **Marco seguinte:** Marco 2 — vida pessoal persistente da protagonista, incremental e sem duplicar sistemas de domínio.
+
+## Marco 2 — Celular e Vida Pessoal
+
+* **Status:** Entrega 1 implementada; validação final em andamento.
+* **Entrega 1 — Celular funcional:** contatos, conversas individuais e mensagens persistentes por campanha/protagonista; envio pelo jogador, recebimento de teste controlado apenas em `development`, leitura básica, relógio ficcional persistido, idempotência e concorrência integradas à versão da campanha.
+* **Próximas entregas (não implementadas):** integrar notificações e mensagens a eventos explícitos do mundo/tempo; modelar compromissos e agenda sobre a mesma fonte de tempo; evoluir rotinas e relacionamentos de NPCs vinculados aos contatos canônicos. Evitar mensagens espontâneas aleatórias e aplicativos sem comportamento real.
+* **Fora desta entrega:** IA narrativa, agenda completa, chamadas reais, autonomia geral de NPCs e geração espontânea de mensagens.

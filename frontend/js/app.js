@@ -27,12 +27,18 @@ import {
 import {
     ApiError,
     carregarCampanha,
+    carregarPerfilPersonagem,
     criarCampanha,
     listarCampanhas,
     migrarCampanhaCanonica,
     salvarAcao,
-    salvarEstadoCampanha
+    salvarEstadoCampanha,
+    reiniciarCampanha as reiniciarCampanhaNoServidor,
+    removerImagemPersonagem,
+    salvarImagemPersonagem,
+    urlImagemPersonagem
 } from './core/api.js';
+import { renderizarCelular } from './core/celular.js';
 
 // Estado local da sessão ativa do protótipo
 const estadoLocal = {
@@ -182,7 +188,7 @@ function criarNovaCampanhaEstado(novoId, novoProtagonista = null) {
         : 'Investigador(a)';
 
     const fichaProtagonista = {
-        id: `char-${novoId}`,
+        id: (novoProtagonista && novoProtagonista.id) || `char-${novoId}`,
         nome: nomePersonagem,
         idade: (novoProtagonista && novoProtagonista.idade) || '28',
         altura: '—',
@@ -337,6 +343,11 @@ const gerenciadorCampanhas = {
         return versao;
     },
 
+    definirVersao(id, versao) {
+        const atual = this.versoes.get(id) || 0;
+        this.versoes.set(id, Math.max(atual, versao));
+    },
+
     substituirCampanhaPersistida(campanha, versao) {
         const indice = this.campanhas.findIndex(item => item.id === campanha.id);
         const eraAtiva = indice >= 0 && this.campanhas[indice].ativa;
@@ -353,21 +364,53 @@ const gerenciadorCampanhas = {
         return this.substituirCampanhaPersistida(resposta.campanha, resposta.versao);
     },
 
-    /**
-     * Cria uma nova campanha com novo ID, novo personagem, nova história e novo estado limpo.
-     */
-    async criarNovaCampanha(novoProtagonista = null) {
+    proximoIdCampanha() {
         let numero = this.campanhas.length + 1;
         let novoId = `camp-${String(numero).padStart(3, '0')}`;
         while (this.campanhas.some(campanha => campanha.id === novoId)) {
             numero++;
             novoId = `camp-${String(numero).padStart(3, '0')}`;
         }
+        return novoId;
+    },
+
+    /**
+     * Cria uma nova campanha com novo ID, novo personagem, nova história e novo estado limpo.
+     */
+    async criarNovaCampanha(novoProtagonista = null) {
+        const novoId = this.proximoIdCampanha();
         const nova = criarNovaCampanhaEstado(novoId, novoProtagonista);
         const resposta = await criarCampanha(nova);
         this.campanhas.forEach(campanha => campanha.ativa = false);
         this.substituirCampanhaPersistida(resposta.campanha, resposta.versao);
         this.ativarCampanha(nova.id);
+    },
+
+    async criarNovaCampanhaComPersonagem(campanhaOrigem) {
+        const novoId = this.proximoIdCampanha();
+        const protagonista = JSON.parse(JSON.stringify(campanhaOrigem.protagonista));
+        const nova = criarNovaCampanhaEstado(novoId, {
+            ...protagonista,
+            profissao: protagonista.cargo
+        });
+        nova.protagonista = { ...nova.protagonista, ...protagonista };
+        const resposta = await criarCampanha(nova);
+        this.campanhas.forEach(campanha => campanha.ativa = false);
+        this.substituirCampanhaPersistida(resposta.campanha, resposta.versao);
+        this.ativarCampanha(nova.id);
+    },
+
+    async reiniciarCampanha(id) {
+        const campanha = this.campanhas.find(item => item.id === id);
+        if (!campanha) throw new Error('A campanha selecionada não está carregada.');
+        const inicial = criarEstadoInicialDaCampanha(campanha);
+        const resposta = await reiniciarCampanhaNoServidor(id, {
+            chaveOperacao: `reset-${crypto.randomUUID()}`,
+            versaoEsperada: this.versaoDaCampanha(id),
+            campanhaInicial: inicial
+        });
+        this.substituirCampanhaPersistida(resposta.campanha, resposta.versao);
+        return resposta;
     },
 
     /**
@@ -406,6 +449,22 @@ const gerenciadorCampanhas = {
     }
 };
 
+function criarEstadoInicialDaCampanha(campanha) {
+    if (campanha.id === 'camp-001') {
+        const inicial = criarCampanhaCanonicaInicial();
+        inicial.protagonista = JSON.parse(JSON.stringify(campanha.protagonista));
+        return inicial;
+    }
+
+    const protagonista = JSON.parse(JSON.stringify(campanha.protagonista));
+    const inicial = criarNovaCampanhaEstado(campanha.id, {
+        ...protagonista,
+        profissao: protagonista.cargo
+    });
+    inicial.protagonista = { ...inicial.protagonista, ...protagonista };
+    return inicial;
+}
+
 /**
  * Atualiza o painel superior (Header) com as informações do protagonista ativo
  */
@@ -429,8 +488,27 @@ function atualizarProtagonistaUI(protagonista) {
             .slice(0, 2)
             .join('')
             .toUpperCase();
-        elAvatar.textContent = iniciais;
+        const textoIniciais = document.createElement('span');
+        textoIniciais.className = 'perfil-avatar-iniciais';
+        textoIniciais.textContent = iniciais;
+        const imagem = document.createElement('img');
+        imagem.className = 'perfil-avatar-imagem';
+        imagem.alt = '';
+        imagem.hidden = true;
+        imagem.onload = () => {
+            imagem.hidden = false;
+            textoIniciais.hidden = true;
+        };
+        imagem.onerror = () => {
+            imagem.hidden = true;
+            textoIniciais.hidden = false;
+        };
+        elAvatar.replaceChildren(textoIniciais, imagem);
+        if (protagonista.id) {
+            imagem.src = `${urlImagemPersonagem(protagonista.id)}?v=${Date.now()}`;
+        }
     }
+    atualizarCabecalhoCasoUI();
 }
 
 // ─── SISTEMA DE MUNDO VIVO ───────────────────────────────────────────────────
@@ -719,12 +797,17 @@ const telaSistema = document.getElementById('tela-sistema');
 const formLogin = document.getElementById('form-login');
 const btnLogout = document.getElementById('btn-logout');
 const navItens = document.querySelectorAll('.nav-item');
+const sidebarAlternar = document.getElementById('sidebar-alternar');
+const corpoSistema = document.querySelector('.corpo-sistema');
 const conteudoPrincipal = document.getElementById('conteudo-principal');
 const relogioTopo = document.getElementById('relogio-topo');
 const modalOverlay = document.getElementById('modal-overlay');
 const modalTitulo = document.getElementById('modal-titulo');
 const modalCorpo = document.getElementById('modal-corpo');
 const modalFechar = document.getElementById('modal-fechar');
+const modalBotaoFechar = document.getElementById('modal-botao-fechar');
+const btnEditarPerfil = document.getElementById('btn-editar-perfil');
+let urlPrevisualizacaoPerfil = null;
 
 // Elementos DOM do Criador de Personagem
 const modalCriador = document.getElementById('modal-criador');
@@ -736,6 +819,7 @@ const criadorConteudo = document.getElementById('criador-conteudo');
  * Inicialização da Aplicação
  */
 function inicializarApp() {
+    inicializarEstadoSidebar();
     configurarEventosAutenticacao();
     configurarNavegacaoSidebar();
     configurarModal();
@@ -774,17 +858,89 @@ function configurarEventosAutenticacao() {
  */
 function configurarNavegacaoSidebar() {
     navItens.forEach(item => {
+        const rotulo = item.querySelector(':scope > span:not(.nav-item-badge)')?.textContent.trim();
+        if (rotulo) {
+            item.setAttribute('role', 'button');
+            item.setAttribute('aria-label', rotulo);
+            item.setAttribute('title', rotulo);
+            item.tabIndex = 0;
+        }
+        if (item.classList.contains('ativo')) item.setAttribute('aria-current', 'page');
         item.addEventListener('click', () => {
             const abaAlvo = item.getAttribute('data-aba');
             if (!abaAlvo) return;
 
-            navItens.forEach(nav => nav.classList.remove('ativo'));
+            navItens.forEach(nav => {
+                nav.classList.remove('ativo');
+                nav.removeAttribute('aria-current');
+            });
             item.classList.add('ativo');
+            item.setAttribute('aria-current', 'page');
 
             estadoLocal.abaAtiva = abaAlvo;
+            if (window.matchMedia('(max-width: 768px)').matches) {
+                corpoSistema.classList.add('navegacao-mobile-fechada');
+                atualizarBotaoSidebar();
+            }
             renderizarAba(abaAlvo);
         });
+        item.addEventListener('keydown', evento => {
+            if (evento.key === 'Enter' || evento.key === ' ') {
+                evento.preventDefault();
+                item.click();
+            }
+        });
     });
+}
+
+const CHAVE_PREFERENCIA_SIDEBAR = 'crimson-veil.sidebar-recolhida';
+
+function inicializarEstadoSidebar() {
+    let recolhida = false;
+    try {
+        recolhida = localStorage.getItem(CHAVE_PREFERENCIA_SIDEBAR) === 'true';
+    } catch (erro) {
+        console.warn('Não foi possível restaurar a preferência visual da navegação.', erro);
+    }
+    corpoSistema.classList.toggle('sidebar-recolhida', recolhida);
+    const consultaMobile = window.matchMedia('(max-width: 768px)');
+    if (consultaMobile.matches) {
+        corpoSistema.classList.add('navegacao-mobile-fechada');
+    }
+    atualizarBotaoSidebar();
+    consultaMobile.addEventListener('change', evento => {
+        corpoSistema.classList.toggle('navegacao-mobile-fechada', evento.matches);
+        atualizarBotaoSidebar();
+    });
+
+    sidebarAlternar.addEventListener('click', () => {
+        if (window.matchMedia('(max-width: 768px)').matches) {
+            corpoSistema.classList.toggle('navegacao-mobile-fechada');
+        } else {
+            const recolhidaAgora = corpoSistema.classList.toggle('sidebar-recolhida');
+            try {
+                localStorage.setItem(CHAVE_PREFERENCIA_SIDEBAR, String(recolhidaAgora));
+            } catch (erro) {
+                console.warn('Não foi possível salvar a preferência visual da navegação.', erro);
+            }
+        }
+        atualizarBotaoSidebar();
+    });
+}
+
+function atualizarBotaoSidebar() {
+    const emTelaMenor = window.matchMedia('(max-width: 768px)').matches;
+    const navegaFechada = emTelaMenor
+        ? corpoSistema.classList.contains('navegacao-mobile-fechada')
+        : corpoSistema.classList.contains('sidebar-recolhida');
+    const acao = emTelaMenor
+        ? (navegaFechada ? 'Abrir navegação' : 'Fechar navegação')
+        : (navegaFechada ? 'Expandir navegação' : 'Recolher navegação');
+    sidebarAlternar.setAttribute('aria-label', acao);
+    sidebarAlternar.setAttribute('title', acao);
+    sidebarAlternar.setAttribute('aria-expanded', String(!navegaFechada));
+    sidebarAlternar.querySelector('.sidebar-alternar-texto').textContent = acao;
+    sidebarAlternar.classList.toggle('recolhida', navegaFechada);
 }
 
 /**
@@ -796,6 +952,25 @@ function atualizarRelogioUI() {
         const horario = (camp && camp.estadoMundo && camp.estadoMundo.horarioAtual) || estadoLocal.horarioAtual;
         relogioTopo.textContent = `${dadosCampanha.cidade} — ${horario}`;
     }
+    atualizarCabecalhoCasoUI();
+}
+
+function atualizarCabecalhoCasoUI() {
+    const campanha = gerenciadorCampanhas.campanhaAtiva();
+    if (!campanha) return;
+
+    const caso = campanha.casoAtivo;
+    const codigo = document.getElementById('header-caso-codigo');
+    const titulo = document.getElementById('header-caso-titulo');
+    const contexto = document.getElementById('header-caso-contexto');
+    const status = document.getElementById('header-caso-status');
+
+    if (codigo) codigo.textContent = caso?.codigo || 'PRÓLOGO';
+    if (titulo) titulo.textContent = caso?.titulo || campanha.titulo || 'Campanha em andamento';
+    if (contexto) contexto.textContent = caso?.subtitulo || campanha.progresso || campanha.episodio || 'História em curso';
+    if (status) status.textContent = caso
+        ? (campanha.status || caso.status || 'EM INVESTIGAÇÃO')
+        : 'SEM CASO ATRIBUÍDO';
 }
 
 /**
@@ -803,6 +978,7 @@ function atualizarRelogioUI() {
  */
 function renderizarAba(nomeAba) {
     conteudoPrincipal.innerHTML = '';
+    atualizarCabecalhoCasoUI();
 
     switch (nomeAba) {
         case 'dashboard':
@@ -811,6 +987,16 @@ function renderizarAba(nomeAba) {
         case 'investigacao':
             renderizarInvestigacao();
             break;
+        case 'celular': {
+            const campanha = gerenciadorCampanhas.campanhaAtiva();
+            renderizarCelular(
+                conteudoPrincipal,
+                campanha.id,
+                () => gerenciadorCampanhas.versaoDaCampanha(campanha.id),
+                gerenciadorCampanhas.definirVersao.bind(gerenciadorCampanhas)
+            );
+            break;
+        }
         case 'casos':
             renderizarCasos();
             break;
@@ -1641,6 +1827,18 @@ function renderizarEtapaTransicao() {
 /**
  * 1. TELA: DASHBOARD DA CAMPANHA (ISOLAMENTO MULTI-HISTÓRIA)
  */
+function mostrarMensagemOperacaoDashboard(texto, erro = false) {
+    const anterior = document.getElementById('feedback-operacao-campanha');
+    if (anterior) anterior.remove();
+    const feedback = document.createElement('p');
+    feedback.id = 'feedback-operacao-campanha';
+    feedback.className = `feedback-operacao${erro ? ' erro' : ''}`;
+    feedback.setAttribute('role', erro ? 'alert' : 'status');
+    feedback.textContent = texto;
+    conteudoPrincipal.prepend(feedback);
+    window.setTimeout(() => feedback.remove(), 8000);
+}
+
 function renderizarDashboard() {
     const campanhaAtiva = gerenciadorCampanhas.campanhaAtiva();
     const todasCampanhas = gerenciadorCampanhas.campanhas;
@@ -1658,12 +1856,24 @@ function renderizarDashboard() {
             </div>
             <div class="card-campanha-rodape">
                 <span class="card-campanha-meta">Protagonista: <b>${c.protagonista.nome}</b> | ${c.ultimaAtividade}</span>
-                <button
-                    class="btn-continuar-campanha"
-                    onclick="window.continuarCampanha('${c.id}')"
-                >
-                    ${c.ativa ? 'CONTINUAR →' : 'RETOMAR →'}
-                </button>
+                <div class="acoes-campanha">
+                    <button
+                        class="btn-continuar-campanha"
+                        onclick="window.continuarCampanha('${c.id}')"
+                    >
+                        ${c.ativa ? 'CONTINUAR →' : 'RETOMAR →'}
+                    </button>
+                    <button class="btn-acao-campanha"
+                        onclick="window.novaCampanhaComPersonagem('${c.id}', this)"
+                        aria-label="Nova campanha com ${c.protagonista.nome}">
+                        NOVA COM PERSONAGEM
+                    </button>
+                    <button class="btn-acao-campanha btn-reiniciar"
+                        onclick="window.reiniciarCampanha('${c.id}', this)"
+                        aria-label="Reiniciar campanha de ${c.protagonista.nome}">
+                        REINICIAR CAMPANHA
+                    </button>
+                </div>
             </div>
         </div>
     `).join('');
@@ -1762,9 +1972,15 @@ function renderizarDashboard() {
     // Registra handlers de navegação e campanha
     window.navegarAba = (aba) => {
         navItens.forEach(nav => {
-            if (nav.getAttribute('data-aba') === aba) nav.classList.add('ativo');
-            else nav.classList.remove('ativo');
+            const ativa = nav.getAttribute('data-aba') === aba;
+            nav.classList.toggle('ativo', ativa);
+            if (ativa) nav.setAttribute('aria-current', 'page');
+            else nav.removeAttribute('aria-current');
         });
+        if (window.matchMedia('(max-width: 768px)').matches) {
+            corpoSistema.classList.add('navegacao-mobile-fechada');
+            atualizarBotaoSidebar();
+        }
         estadoLocal.abaAtiva = aba;
         renderizarAba(aba);
     };
@@ -1776,6 +1992,51 @@ function renderizarDashboard() {
 
     window.abrirModalNovaCampanha = () => {
         abrirCriadorPersonagem();
+    };
+
+    window.reiniciarCampanha = async (id, botao) => {
+        const campanha = gerenciadorCampanhas.campanhas.find(item => item.id === id);
+        if (!campanha) return;
+        const tituloCampanha = campanha.casoAtivo?.titulo || campanha.titulo;
+        const confirmar = window.confirm(
+            `Reiniciar a campanha "${tituloCampanha}" de ${campanha.protagonista.nome}?\n\n`
+            + 'Todo o progresso narrativo desta campanha será reiniciado: pistas, evidências, decisões, '
+            + 'consequências, eventos, histórico, contatos e mensagens. A personagem e seu perfil, '
+            + 'incluindo a imagem personalizada, serão preservados. As outras campanhas não serão alteradas.'
+        );
+        if (!confirmar) return;
+
+        botao.disabled = true;
+        const textoOriginal = botao.textContent;
+        botao.textContent = 'REINICIANDO...';
+        try {
+            await gerenciadorCampanhas.reiniciarCampanha(id);
+            renderizarAba('dashboard');
+            mostrarMensagemOperacaoDashboard(`Campanha "${tituloCampanha}" reiniciada. Personagem e perfil preservados.`);
+        } catch (erro) {
+            botao.disabled = false;
+            botao.textContent = textoOriginal;
+            mostrarMensagemOperacaoDashboard(`Não foi possível reiniciar a campanha: ${erro.message}`, true);
+        }
+    };
+
+    window.novaCampanhaComPersonagem = async (id, botao) => {
+        const campanha = gerenciadorCampanhas.campanhas.find(item => item.id === id);
+        if (!campanha) return;
+        botao.disabled = true;
+        const textoOriginal = botao.textContent;
+        botao.textContent = 'CRIANDO...';
+        try {
+            await gerenciadorCampanhas.criarNovaCampanhaComPersonagem(campanha);
+            renderizarAba('dashboard');
+            mostrarMensagemOperacaoDashboard(
+                `Nova campanha criada com ${campanha.protagonista.nome}. A campanha anterior permanece intacta.`
+            );
+        } catch (erro) {
+            botao.disabled = false;
+            botao.textContent = textoOriginal;
+            mostrarMensagemOperacaoDashboard(`Não foi possível criar a campanha: ${erro.message}`, true);
+        }
     };
 
     window.assumirCaso = async (idCaso) => {
@@ -1853,6 +2114,23 @@ function renderizarInvestigacao() {
     const evidenciasPreview = campAtiva.evidencias.slice(0, 3);
     const primeiroNome = (campAtiva.protagonista.nome || 'Investigador').split(' ')[0];
     const casoAtivo = campAtiva.casoAtivo;
+    const escaparHTML = valor => String(valor ?? '').replace(/[&<>"']/g, caractere => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    })[caractere]);
+    const iniciaisProtagonista = (campAtiva.protagonista.nome || 'I')
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map(nome => nome[0])
+        .join('')
+        .toUpperCase();
+    const tituloCena = casoAtivo?.titulo || campAtiva.titulo || 'Registro da campanha';
+    const identificadorCena = casoAtivo?.codigo || campAtiva.codigo || 'ARQUIVO DE CAMPANHA';
+    const subtituloCena = casoAtivo?.subtitulo || campAtiva.progresso || 'Histórico narrativo da campanha';
 
     // Chips de sugestão contextual
     let htmlChipsSugestao = "";
@@ -1880,16 +2158,30 @@ function renderizarInvestigacao() {
                     <div class="terminal-info-cena">
                         <span class="tag-local">
                             <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
-                            ${campAtiva.estadoMundo.localAtual} — BLACKWOOD
+                            ${escaparHTML(campAtiva.estadoMundo.localAtual)} — BLACKWOOD
                         </span>
-                        <span class="tag-status-cena">${casoAtivo ? 'CENA DE CRIME // TURNO ABERTO' : 'TERMINAL DA DCE // HISTÓRIA EM CURSO'}</span>
+                        <span class="tag-status-cena">${escaparHTML(casoAtivo ? (campAtiva.status || 'CENA ATIVA') : 'TERMINAL DA DCE // HISTÓRIA EM CURSO')}</span>
                     </div>
-                    <div style="font-family: var(--fonte-mono); font-size: 11px; color: var(--texto-mutado);">
-                        <b style="color: var(--azul-forense);">${campAtiva.estadoMundo.horarioAtual}</b>
-                    </div>
+                    <time class="terminal-relogio">${escaparHTML(campAtiva.estadoMundo.horarioAtual)}</time>
                 </div>
 
-                <div class="terminal-historico" id="terminal-historico">
+                <header class="cena-capa">
+                    <div class="cena-capa-conteudo">
+                        <span class="cena-capa-identificador">${escaparHTML(campAtiva.episodio || 'CENA ATUAL')}</span>
+                        <h1>${escaparHTML(campAtiva.estadoMundo.localAtual || 'Local não informado')}</h1>
+                        <p>${escaparHTML(campAtiva.estadoMundo.clima || 'Condições do local não registradas')}</p>
+                    </div>
+                    <div class="cena-capa-protagonista" aria-label="Protagonista da campanha">
+                        <span class="cena-capa-iniciais" aria-hidden="true">${escaparHTML(iniciaisProtagonista)}</span>
+                        <span class="cena-capa-identidade">
+                            <small>EM CENA</small>
+                            <strong>${escaparHTML(campAtiva.protagonista.nome || 'Investigador')}</strong>
+                            <span>${escaparHTML(campAtiva.protagonista.cargo || 'Investigador')}</span>
+                        </span>
+                    </div>
+                </header>
+
+                <div class="terminal-historico" id="terminal-historico" aria-label="Histórico narrativo da cena">
                     ${gerarHtmlMensagensCena()}
                 </div>
 
@@ -1898,7 +2190,7 @@ function renderizarInvestigacao() {
                         ${htmlChipsSugestao}
                     </div>
                     <div class="input-container">
-                        <textarea class="textarea-acao" id="input-acao" placeholder="O que você faz, ${campAtiva.protagonista.nome || 'Detetive'}?"></textarea>
+                        <textarea class="textarea-acao" id="input-acao" aria-label="Ação da protagonista" placeholder="O que você faz, ${escaparHTML(campAtiva.protagonista.nome || 'Detetive')}?"></textarea>
                         <button class="btn-enviar-acao" id="btn-enviar-acao">
                             <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
                             <span>Enviar</span>
@@ -1913,20 +2205,19 @@ function renderizarInvestigacao() {
                 <!-- Bloco de contexto do caso -->
                 ${casoAtivo ? `
                     <div class="contexto-caso-bloco">
-                        <span class="contexto-caso-rotulo">${casoAtivo.codigo || 'CASO #001'} — EP. I</span>
-                        <h4>${casoAtivo.titulo}</h4>
+                        <span class="contexto-caso-rotulo">${escaparHTML(identificadorCena)}${campAtiva.episodio ? ` — ${escaparHTML(campAtiva.episodio)}` : ''}</span>
                         <div class="contexto-linha">
                             <div class="contexto-item">
                                 <span class="contexto-item-rotulo">Local</span>
-                                <span class="contexto-item-valor">${campAtiva.estadoMundo.localAtual}</span>
+                                <span class="contexto-item-valor">${escaparHTML(campAtiva.estadoMundo.localAtual)}</span>
                             </div>
                             <div class="contexto-item">
                                 <span class="contexto-item-rotulo">Status</span>
-                                <span class="contexto-item-valor">Investigação ativa</span>
+                                <span class="contexto-item-valor">${escaparHTML(campAtiva.status || 'Investigação ativa')}</span>
                             </div>
                             <div class="contexto-item">
                                 <span class="contexto-item-rotulo">Horário</span>
-                                <span class="contexto-item-valor destaque">${campAtiva.estadoMundo.horarioAtual}</span>
+                                <span class="contexto-item-valor destaque">${escaparHTML(campAtiva.estadoMundo.horarioAtual)}</span>
                             </div>
                         </div>
                     </div>
@@ -1945,18 +2236,18 @@ function renderizarInvestigacao() {
 
                 <!-- Painel colapsável: Pessoas presentes -->
                 <div class="painel-colapsavel" id="painel-pessoas">
-                    <div class="painel-col-header" onclick="togglePainel('painel-pessoas')">
-                        <div class="painel-col-titulo">
+                    <button class="painel-col-header" type="button" aria-expanded="true" aria-controls="painel-pessoas-corpo" onclick="togglePainel('painel-pessoas')">
+                        <span class="painel-col-titulo">
                             <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197"/></svg>
                             Presentes na Cena
                             <span class="painel-col-contador">${presentes.length}</span>
-                        </div>
+                        </span>
                         <svg class="painel-col-toggle" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                    </div>
-                    <div class="painel-col-corpo">
+                    </button>
+                    <div class="painel-col-corpo" id="painel-pessoas-corpo" aria-hidden="false">
                         ${presentes.map(nome => `
                             <div class="item-painel">
-                                <div class="item-painel-nome">${nome}</div>
+                                <div class="item-painel-nome">${escaparHTML(nome)}</div>
                                 <div class="item-painel-sub">Disponível para interação</div>
                             </div>
                         `).join('')}
@@ -1965,15 +2256,15 @@ function renderizarInvestigacao() {
 
                 <!-- Painel colapsável: Pistas -->
                 <div class="painel-colapsavel colapsado" id="painel-pistas">
-                    <div class="painel-col-header" onclick="togglePainel('painel-pistas')">
-                        <div class="painel-col-titulo">
+                    <button class="painel-col-header" type="button" aria-expanded="false" aria-controls="painel-pistas-corpo" onclick="togglePainel('painel-pistas')">
+                        <span class="painel-col-titulo">
                             <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                             Pistas Confirmadas
                             <span class="painel-col-contador">${campAtiva.pistas.length}</span>
-                        </div>
+                        </span>
                         <svg class="painel-col-toggle" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                    </div>
-                    <div class="painel-col-corpo">
+                    </button>
+                    <div class="painel-col-corpo" id="painel-pistas-corpo" aria-hidden="true" inert>
                         ${campAtiva.pistas.length > 0 ? `
                             ${pistasPreview.map(p => `
                                 <div class="item-painel" onclick="window.abrirModalDetalhes('${p.id}', 'pista')">
@@ -1992,15 +2283,15 @@ function renderizarInvestigacao() {
 
                 <!-- Painel colapsável: Evidências -->
                 <div class="painel-colapsavel colapsado" id="painel-evidencias">
-                    <div class="painel-col-header" onclick="togglePainel('painel-evidencias')">
-                        <div class="painel-col-titulo">
+                    <button class="painel-col-header" type="button" aria-expanded="false" aria-controls="painel-evidencias-corpo" onclick="togglePainel('painel-evidencias')">
+                        <span class="painel-col-titulo">
                             <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
                             Evidências
                             <span class="painel-col-contador">${campAtiva.evidencias.length}</span>
-                        </div>
+                        </span>
                         <svg class="painel-col-toggle" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                    </div>
-                    <div class="painel-col-corpo">
+                    </button>
+                    <div class="painel-col-corpo" id="painel-evidencias-corpo" aria-hidden="true" inert>
                         ${campAtiva.evidencias.length > 0 ? `
                             ${evidenciasPreview.map(e => `
                                 <div class="item-painel" onclick="window.abrirModalDetalhes('${e.id}', 'evidencia')">
@@ -2031,7 +2322,13 @@ function renderizarInvestigacao() {
  */
 function togglePainel(id) {
     const painel = document.getElementById(id);
-    if (painel) painel.classList.toggle('colapsado');
+    if (!painel) return;
+    const colapsado = painel.classList.toggle('colapsado');
+    const cabecalho = painel.querySelector('.painel-col-header');
+    const corpo = painel.querySelector('.painel-col-corpo');
+    cabecalho?.setAttribute('aria-expanded', String(!colapsado));
+    corpo?.setAttribute('aria-hidden', String(colapsado));
+    if (corpo) corpo.inert = colapsado;
 }
 
 /**
@@ -2041,9 +2338,15 @@ function configurarNavegacaoContexto() {
     window.togglePainel = togglePainel;
     window.navegarAba = (aba) => {
         navItens.forEach(nav => {
-            if (nav.getAttribute('data-aba') === aba) nav.classList.add('ativo');
-            else nav.classList.remove('ativo');
+            const ativa = nav.getAttribute('data-aba') === aba;
+            nav.classList.toggle('ativo', ativa);
+            if (ativa) nav.setAttribute('aria-current', 'page');
+            else nav.removeAttribute('aria-current');
         });
+        if (window.matchMedia('(max-width: 768px)').matches) {
+            corpoSistema.classList.add('navegacao-mobile-fechada');
+            atualizarBotaoSidebar();
+        }
         estadoLocal.abaAtiva = aba;
         renderizarAba(aba);
     };
@@ -2057,28 +2360,43 @@ function gerarHtmlMensagensCena() {
     const nomeProtagonista = (campAtiva.protagonista && campAtiva.protagonista.nome) 
         ? campAtiva.protagonista.nome.toUpperCase() 
         : 'INVESTIGADOR';
+    const escaparHTML = valor => String(valor ?? '').replace(/[&<>"']/g, caractere => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    })[caractere]);
 
     return campAtiva.mensagensCena.map(m => {
         if (m.tipo === 'SISTEMA') {
-            return `<div class="bloco-mensagem bloco-sistema">${m.conteudo}</div>`;
+            return `<div class="bloco-mensagem bloco-sistema">${escaparHTML(m.conteudo)}</div>`;
         } else if (m.tipo === 'NARRADOR') {
+            const paragrafos = String(m.conteudo ?? '').split(/\n\s*\n/).map(paragrafo => paragrafo.trim()).filter(Boolean);
+            const conteudoFormatado = paragrafos.map(paragrafo => {
+                const fala = paragrafo.match(/^([^:\n]{1,48}):\s*—\s*([\s\S]*)$/);
+                if (fala) {
+                    return `<p class="bloco-dialogo"><strong>${escaparHTML(fala[1])}</strong><span>— ${escaparHTML(fala[2])}</span></p>`;
+                }
+                return `<p class="bloco-narrador-paragrafo">${escaparHTML(paragrafo)}</p>`;
+            }).join('');
             return `
                 <div class="bloco-mensagem bloco-narrador">
                     <div class="bloco-narrador-header">
                         <span>NARRADOR // AMBIENTE & NPCS</span>
-                        <span>${m.horario}</span>
+                        <time>${escaparHTML(m.horario)}</time>
                     </div>
-                    <div class="bloco-narrador-texto">${m.conteudo}</div>
+                    <div class="bloco-narrador-texto">${conteudoFormatado}</div>
                 </div>
             `;
         } else if (m.tipo === 'JOGADOR') {
             return `
                 <div class="bloco-mensagem bloco-jogador">
                     <div class="bloco-jogador-header">
-                        <span>${nomeProtagonista} // PROTAGONISTA</span>
-                        <span>${m.horario}</span>
+                        <span>${escaparHTML(nomeProtagonista)} // PROTAGONISTA</span>
+                        <time>${escaparHTML(m.horario)}</time>
                     </div>
-                    <div class="bloco-jogador-texto">${m.conteudo}</div>
+                    <div class="bloco-jogador-texto">${escaparHTML(m.conteudo)}</div>
                 </div>
             `;
         }
@@ -2561,13 +2879,13 @@ function gerarLinhasSvgConexoes() {
  * MODAL DE DETALHES
  */
 function configurarModal() {
-    modalFechar.addEventListener('click', () => {
-        modalOverlay.classList.remove('ativo');
-    });
+    modalFechar.addEventListener('click', fecharModalDetalhes);
+    modalBotaoFechar.addEventListener('click', fecharModalDetalhes);
+    btnEditarPerfil.addEventListener('click', abrirGerenciadorImagemPerfil);
 
     modalOverlay.addEventListener('click', (e) => {
         if (e.target === modalOverlay) {
-            modalOverlay.classList.remove('ativo');
+            fecharModalDetalhes();
         }
     });
 
@@ -2605,12 +2923,15 @@ function configurarModal() {
 
     window.abrirCasoNaInvestigacao = (idCaso) => {
         navItens.forEach(nav => {
-            if (nav.getAttribute('data-aba') === 'investigacao') {
-                nav.classList.add('ativo');
-            } else {
-                nav.classList.remove('ativo');
-            }
+            const ativa = nav.getAttribute('data-aba') === 'investigacao';
+            nav.classList.toggle('ativo', ativa);
+            if (ativa) nav.setAttribute('aria-current', 'page');
+            else nav.removeAttribute('aria-current');
         });
+        if (window.matchMedia('(max-width: 768px)').matches) {
+            corpoSistema.classList.add('navegacao-mobile-fechada');
+            atualizarBotaoSidebar();
+        }
         estadoLocal.abaAtiva = 'investigacao';
         renderizarAba('investigacao');
     };
@@ -2624,6 +2945,173 @@ function configurarModal() {
         `;
         modalOverlay.classList.add('ativo');
     };
+}
+
+function fecharModalDetalhes() {
+    modalOverlay.classList.remove('ativo');
+    if (urlPrevisualizacaoPerfil) {
+        URL.revokeObjectURL(urlPrevisualizacaoPerfil);
+        urlPrevisualizacaoPerfil = null;
+    }
+}
+
+async function abrirGerenciadorImagemPerfil() {
+    const campanha = gerenciadorCampanhas.campanhaAtiva();
+    const protagonista = campanha.protagonista;
+    modalTitulo.textContent = `PERFIL // ${protagonista.nome}`;
+    modalCorpo.innerHTML = `
+        <div class="perfil-imagem-gerenciador">
+            <img class="perfil-imagem-previa" id="perfil-imagem-previa" alt="Pré-visualização da imagem de perfil" hidden>
+            <div id="perfil-avatar-padrao" class="perfil-avatar perfil-avatar-padrao">CV</div>
+            <p class="perfil-imagem-status" id="perfil-imagem-status" role="status" aria-live="polite">
+                Carregando as preferências do perfil...
+            </p>
+            <label for="perfil-imagem-arquivo">Escolha uma imagem JPEG, PNG ou WebP</label>
+            <input id="perfil-imagem-arquivo" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" disabled>
+            <span id="perfil-imagem-limite" class="texto-secundario">Limite configurado pelo backend.</span>
+            <div class="perfil-imagem-acoes">
+                <button class="btn-primario" id="perfil-imagem-salvar" type="button" disabled>SALVAR IMAGEM</button>
+                <button class="btn-acao-campanha" id="perfil-imagem-remover" type="button" disabled>VOLTAR AO AVATAR PADRÃO</button>
+            </div>
+        </div>
+    `;
+    modalOverlay.classList.add('ativo');
+
+    const previa = document.getElementById('perfil-imagem-previa');
+    const avatarPadrao = document.getElementById('perfil-avatar-padrao');
+    const status = document.getElementById('perfil-imagem-status');
+    const entrada = document.getElementById('perfil-imagem-arquivo');
+    const limiteRotulo = document.getElementById('perfil-imagem-limite');
+    const salvar = document.getElementById('perfil-imagem-salvar');
+    const remover = document.getElementById('perfil-imagem-remover');
+    const formatosAceitos = ['image/jpeg', 'image/png', 'image/webp'];
+    let arquivoSelecionado = null;
+    let limiteBytes = 2 * 1024 * 1024;
+    let possuiImagem = false;
+    avatarPadrao.textContent = protagonista.nome.split(/\s+/)
+        .filter(Boolean).map(nome => nome[0]).slice(0, 2).join('').toUpperCase();
+
+    const mensagem = (texto, erro = false) => {
+        status.textContent = texto;
+        status.classList.toggle('erro', erro);
+        status.setAttribute('role', erro ? 'alert' : 'status');
+    };
+    const formatarLimite = bytes => bytes < 1024 * 1024
+        ? `${Math.ceil(bytes / 1024)} KB`
+        : `${(bytes / (1024 * 1024)).toFixed(1).replace(/\.0$/, '')} MB`;
+    const mostrarImagemAtual = () => {
+        previa.hidden = true;
+        avatarPadrao.hidden = false;
+        if (possuiImagem) {
+            previa.onload = () => {
+                previa.hidden = false;
+                avatarPadrao.hidden = true;
+            };
+            previa.onerror = () => {
+                previa.hidden = true;
+                avatarPadrao.hidden = false;
+            };
+            previa.src = `${urlImagemPersonagem(protagonista.id)}?v=${Date.now()}`;
+        } else {
+            previa.removeAttribute('src');
+        }
+    };
+
+    try {
+        const perfil = await carregarPerfilPersonagem(protagonista.id);
+        limiteBytes = perfil.limiteImagemBytes;
+        possuiImagem = perfil.possuiImagem;
+        limiteRotulo.textContent = `Tamanho máximo: ${formatarLimite(limiteBytes)}. A imagem fica salva no perfil da personagem.`;
+        entrada.disabled = false;
+        salvar.disabled = true;
+        remover.disabled = !possuiImagem;
+        mensagem(possuiImagem ? 'Imagem personalizada carregada.' : 'Nenhuma imagem personalizada. O avatar padrão está ativo.');
+        mostrarImagemAtual();
+    } catch (erro) {
+        entrada.disabled = true;
+        remover.disabled = true;
+        mensagem(`Não foi possível carregar o perfil: ${erro.message}`, true);
+    }
+
+    entrada.addEventListener('change', () => {
+        arquivoSelecionado = entrada.files?.[0] || null;
+        if (!arquivoSelecionado) {
+            salvar.disabled = true;
+            mostrarImagemAtual();
+            return;
+        }
+        if (!formatosAceitos.includes(arquivoSelecionado.type)) {
+            arquivoSelecionado = null;
+            entrada.value = '';
+            salvar.disabled = true;
+            mostrarImagemAtual();
+            mensagem('Formato inválido. Selecione uma imagem JPEG, PNG ou WebP.', true);
+            return;
+        }
+        if (arquivoSelecionado.size > limiteBytes) {
+            arquivoSelecionado = null;
+            entrada.value = '';
+            salvar.disabled = true;
+            mostrarImagemAtual();
+            mensagem(`A imagem excede o limite de ${formatarLimite(limiteBytes)}.`, true);
+            return;
+        }
+        if (urlPrevisualizacaoPerfil) URL.revokeObjectURL(urlPrevisualizacaoPerfil);
+        urlPrevisualizacaoPerfil = URL.createObjectURL(arquivoSelecionado);
+        previa.onload = null;
+        previa.onerror = null;
+        previa.src = urlPrevisualizacaoPerfil;
+        previa.hidden = false;
+        avatarPadrao.hidden = true;
+        salvar.disabled = false;
+        mensagem('Pré-visualização pronta. Salve para aplicar a imagem ao perfil.');
+    });
+
+    salvar.addEventListener('click', async () => {
+        if (!arquivoSelecionado) return;
+        salvar.disabled = true;
+        remover.disabled = true;
+        entrada.disabled = true;
+        mensagem('Salvando a imagem do perfil...');
+        try {
+            await salvarImagemPersonagem(protagonista.id, arquivoSelecionado);
+            possuiImagem = true;
+            arquivoSelecionado = null;
+            entrada.value = '';
+            atualizarProtagonistaUI(gerenciadorCampanhas.campanhaAtiva().protagonista);
+            mostrarImagemAtual();
+            remover.disabled = false;
+            mensagem('Imagem salva no perfil e vinculada à personagem.');
+        } catch (erro) {
+            salvar.disabled = false;
+            remover.disabled = !possuiImagem;
+            mensagem(`Não foi possível salvar a imagem: ${erro.message}`, true);
+        } finally {
+            entrada.disabled = false;
+        }
+    });
+
+    remover.addEventListener('click', async () => {
+        if (!possuiImagem || !window.confirm('Remover a imagem personalizada e voltar ao avatar padrão?')) return;
+        salvar.disabled = true;
+        remover.disabled = true;
+        entrada.disabled = true;
+        mensagem('Removendo a imagem personalizada...');
+        try {
+            await removerImagemPersonagem(protagonista.id);
+            possuiImagem = false;
+            arquivoSelecionado = null;
+            entrada.value = '';
+            atualizarProtagonistaUI(gerenciadorCampanhas.campanhaAtiva().protagonista);
+            mostrarImagemAtual();
+            mensagem('Imagem removida. O avatar padrão está ativo.');
+        } catch (erro) {
+            remover.disabled = false;
+            mensagem(`Não foi possível remover a imagem: ${erro.message}`, true);
+        } finally {
+            entrada.disabled = false;
+        }
+    });
 }
 
 /**

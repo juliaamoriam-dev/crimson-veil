@@ -6,9 +6,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.time.Instant;
 
@@ -21,7 +24,13 @@ public class ManipuladorGlobalExcecoes {
         return resposta(HttpStatus.NOT_FOUND, exception.getMessage());
     }
 
-    @ExceptionHandler({ConflitoVersaoException.class, DuplicateKeyException.class})
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ErroApiResposta> recursoNaoEncontrado(NoResourceFoundException exception) {
+        return resposta(HttpStatus.NOT_FOUND, "Rota ou recurso não encontrado.");
+    }
+
+    @ExceptionHandler({ConflitoVersaoException.class, ConflitoOperacaoCelularException.class,
+            DuplicateKeyException.class})
     public ResponseEntity<ErroApiResposta> conflito(RuntimeException exception) {
         return resposta(HttpStatus.CONFLICT, exception.getMessage());
     }
@@ -31,6 +40,19 @@ public class ManipuladorGlobalExcecoes {
         return resposta(HttpStatus.BAD_REQUEST, exception.getMessage());
     }
 
+    @ExceptionHandler(ImagemInvalidaException.class)
+    public ResponseEntity<ErroApiResposta> imagemInvalida(ImagemInvalidaException exception) {
+        return resposta(HttpStatus.BAD_REQUEST, exception.getMessage());
+    }
+
+    @ExceptionHandler({ImagemTamanhoException.class, MaxUploadSizeExceededException.class})
+    public ResponseEntity<ErroApiResposta> imagemGrande(RuntimeException exception) {
+        String mensagem = exception instanceof ImagemTamanhoException
+                ? exception.getMessage()
+                : "O arquivo excede o limite permitido para envio.";
+        return resposta(HttpStatus.PAYLOAD_TOO_LARGE, mensagem);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErroApiResposta> validacao(MethodArgumentNotValidException exception) {
         String mensagem = exception.getBindingResult().getFieldErrors().stream()
@@ -38,6 +60,11 @@ public class ManipuladorGlobalExcecoes {
                 .findFirst()
                 .orElse("Requisição inválida.");
         return resposta(HttpStatus.BAD_REQUEST, mensagem);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErroApiResposta> corpoInvalido(HttpMessageNotReadableException exception) {
+        return resposta(HttpStatus.BAD_REQUEST, "Corpo da requisição inválido ou malformado.");
     }
 
     @ExceptionHandler(Exception.class)

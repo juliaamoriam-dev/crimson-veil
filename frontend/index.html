@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Crimson Veil — Divisão de Crimes Especiais // Cidade de Blackwood</title>
+    <link rel="icon" type="image/png" href="assets/crimson-veil-sigil.png">
     <link rel="stylesheet" href="css/estilo.css">
+    <link rel="stylesheet" href="css/celular.css">
 </head>
 <body>
 
@@ -19,10 +21,7 @@
             </div>
 
             <div class="login-marca">
-                <div class="login-marca-icone">
-                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-                </div>
-                <h1 class="login-titulo">CRIMSON VEIL</h1>
+                <img class="login-logo" src="assets/crimson-veil-logo.png" alt="Crimson Veil">
                 <div class="login-subtitulo">TERMINAL INVESTIGATIVO OPERACIONAL</div>
             </div>
 
@@ -58,18 +57,25 @@
         <header class="header-sistema">
             <div class="header-esquerda">
                 <div class="logo-sistema">
-                    <div class="logo-emblema">CV</div>
+                    <img class="logo-emblema" src="assets/crimson-veil-sigil.png" alt="">
                     <div class="logo-texto-box">
                         <span class="logo-texto-principal">CRIMSON VEIL</span>
                         <span class="logo-texto-sub">DIVISÃO DE CRIMES ESPECIAIS — BLACKWOOD</span>
                     </div>
                 </div>
-
-                <div class="caso-ativo-badge">
-                    <div class="caso-ativo-dot"></div>
-                    <span>CASO #001: QUANDO O SANGUE DESAPARECE</span>
-                </div>
             </div>
+
+            <section class="header-caso" aria-label="Caso e investigação atuais">
+                <div class="header-caso-meta">
+                    <span class="header-caso-codigo" id="header-caso-codigo">CASO #001</span>
+                    <span class="header-caso-status">
+                        <span class="caso-ativo-dot" aria-hidden="true"></span>
+                        <span id="header-caso-status">EM INVESTIGAÇÃO</span>
+                    </span>
+                </div>
+                <h1 class="header-caso-titulo" id="header-caso-titulo">Quando o Sangue Desaparece</h1>
+                <p class="header-caso-contexto" id="header-caso-contexto">A Morte de Arthur Vasconcelos</p>
+            </section>
 
             <div class="header-direita">
                 <div class="relogio-bloco">
@@ -77,13 +83,15 @@
                     <span id="relogio-topo">Cidade de Blackwood — 03:30</span>
                 </div>
 
-                <div class="perfil-bloco">
+                <button class="perfil-bloco" id="btn-editar-perfil" type="button"
+                    aria-label="Editar imagem do perfil da personagem atual" title="Editar perfil">
                     <div class="perfil-avatar">MR</div>
                     <div class="perfil-info">
                         <span class="perfil-nome">Det. Milena Ramires</span>
                         <span class="perfil-cargo">Distintivo #4082-DCE</span>
                     </div>
-                </div>
+                    <span class="perfil-editar-indicador" aria-hidden="true">EDITAR</span>
+                </button>
 
                 <button class="btn-icone" id="btn-logout" title="Bloquear Terminal">
                     <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
@@ -96,7 +104,15 @@
             
             <!-- SIDEBAR DE NAVEGAÇÃO -->
             <aside class="sidebar">
-                <nav class="menu-navegacao">
+                <button class="sidebar-alternar" id="sidebar-alternar" type="button"
+                    aria-controls="menu-navegacao-principal" aria-expanded="true"
+                    aria-label="Recolher navegação" title="Recolher navegação">
+                    <svg class="sidebar-alternar-icone" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="m14.5 5-7 7 7 7"></path>
+                    </svg>
+                    <span class="sidebar-alternar-texto">Recolher navegação</span>
+                </button>
+                <nav class="menu-navegacao" id="menu-navegacao-principal" aria-label="Navegação principal">
 
                     <a class="nav-item" data-aba="dashboard">
                         <svg class="nav-item-icone" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
@@ -107,6 +123,11 @@
                         <svg class="nav-item-icone" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
                         <span>Investigação</span>
                         <span class="nav-item-badge nav-vivo">●</span>
+                    </a>
+
+                    <a class="nav-item" data-aba="celular">
+                        <svg class="nav-item-icone" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="2" stroke-width="2"/><path stroke-linecap="round" stroke-width="2" d="M11 18h2"/></svg>
+                        <span>Celular</span>
                     </a>
 
                     <span class="menu-secao-rotulo">Investigação</span>
@@ -189,7 +210,7 @@
                 <!-- Conteúdo do modal -->
             </div>
             <div class="modal-footer">
-                <button class="btn-primario" style="padding: 8px 18px; font-size: 12px;" onclick="document.getElementById('modal-overlay').classList.remove('ativo')">FECHAR</button>
+                <button class="btn-primario" id="modal-botao-fechar" style="padding: 8px 18px; font-size: 12px;">FECHAR</button>
             </div>
         </div>
     </div>

@@ -1,0 +1,1425 @@
+.celular-shell {
+    --celular-fundo: #1b1e23;
+    --celular-superficie: #22262c;
+    --celular-superficie-alta: #2b3037;
+    --celular-linha: rgba(235, 237, 240, 0.12);
+    --celular-linha-forte: rgba(235, 237, 240, 0.2);
+    --celular-texto: #f2f0ec;
+    --celular-secundario: #b3b5b9;
+    --celular-discreto: #878c94;
+    --celular-carmesim: #b34e5d;
+    --celular-carmesim-suave: rgba(179, 78, 93, 0.15);
+    width: min(100%, 1080px);
+    min-height: min(720px, calc(100vh - 132px));
+    margin: 0 auto;
+    overflow: hidden;
+    border: 1px solid var(--celular-linha-forte);
+    border-radius: 17px;
+    background:
+        radial-gradient(ellipse at 88% 0%, rgba(179, 78, 93, 0.08), transparent 36%),
+        linear-gradient(145deg, #22262c, var(--celular-fundo) 58%);
+    color: var(--celular-texto);
+    box-shadow: 0 22px 58px rgba(0, 0, 0, 0.24);
+}
+
+.celular-cabecalho {
+    display: flex;
+    min-height: 76px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 13px clamp(20px, 4vw, 42px);
+    border-bottom: 1px solid var(--celular-linha);
+    background: rgba(13, 15, 19, 0.2);
+}
+
+.celular-marca,
+.celular-sessao,
+.celular-identidade-contato {
+    display: flex;
+    align-items: center;
+}
+
+.celular-marca {
+    gap: 12px;
+}
+
+.celular-marca-icone {
+    display: grid;
+    width: 38px;
+    height: 38px;
+    flex: 0 0 auto;
+    place-items: center;
+    border: 1px solid rgba(179, 78, 93, 0.55);
+    border-radius: 11px;
+    background: var(--celular-carmesim-suave);
+    color: #d58089;
+}
+
+.celular-marca-icone svg {
+    width: 19px;
+    height: 19px;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.5;
+}
+
+.celular-marca-texto,
+.celular-identidade-contato > span:last-child {
+    display: grid;
+    gap: 3px;
+}
+
+.celular-marca-texto strong {
+    font: 700 12px var(--fonte-titulo);
+    letter-spacing: 0.12em;
+}
+
+.celular-marca-texto small,
+.celular-sessao-label,
+.celular-home-painel-topo,
+.celular-secao-label,
+.celular-compositor-label {
+    color: var(--celular-discreto);
+    font: 10px var(--fonte-mono);
+    letter-spacing: 0.1em;
+}
+
+.celular-sessao {
+    gap: 12px;
+    color: var(--celular-secundario);
+    font: 11px var(--fonte-mono);
+}
+
+.celular-sessao-label {
+    color: var(--celular-discreto);
+}
+
+.celular-sessao strong {
+    max-width: 30ch;
+    overflow: hidden;
+    color: var(--celular-secundario);
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.celular-versao {
+    padding: 4px 7px;
+    border: 1px solid var(--celular-linha);
+    border-radius: 4px;
+    color: #d1c8c7;
+    font-size: 9px;
+}
+
+.celular-inicio,
+.celular-pagina {
+    padding: clamp(24px, 5vw, 54px);
+}
+
+.celular-inicio {
+    display: grid;
+    min-height: 530px;
+    grid-template-columns: minmax(0, 1.08fr) minmax(280px, 0.92fr);
+    align-items: center;
+    gap: clamp(30px, 7vw, 90px);
+}
+
+.celular-home-intro {
+    max-width: 490px;
+}
+
+.celular-sobrelinha {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+    color: #d17c85;
+    font: 10px var(--fonte-mono);
+    letter-spacing: 0.15em;
+}
+
+.celular-sobrelinha > span {
+    width: 22px;
+    height: 1px;
+    background: var(--celular-carmesim);
+}
+
+.celular-home-intro h1 {
+    margin: 0;
+    font: 500 clamp(38px, 6vw, 64px)/1.08 var(--fonte-titulo);
+    letter-spacing: -0.035em;
+}
+
+.celular-home-intro h1 em {
+    color: #c17a81;
+    font-style: normal;
+}
+
+.celular-home-descricao {
+    max-width: 43ch;
+    margin-top: 22px;
+    color: var(--celular-secundario);
+    font-size: 15px;
+    line-height: 1.8;
+}
+
+.celular-vinculo {
+    display: grid;
+    gap: 5px;
+    margin-top: 38px;
+    padding-left: 13px;
+    border-left: 2px solid var(--celular-carmesim);
+}
+
+.celular-vinculo span {
+    color: var(--celular-discreto);
+    font: 9px var(--fonte-mono);
+    letter-spacing: 0.12em;
+}
+
+.celular-vinculo strong {
+    color: var(--celular-secundario);
+    font: 12px var(--fonte-mono);
+}
+
+.celular-home-painel {
+    display: grid;
+    gap: 20px;
+    align-content: center;
+    padding: clamp(20px, 3vw, 32px);
+    border: 1px solid var(--celular-linha);
+    border-radius: 14px;
+    background: linear-gradient(155deg, rgba(49, 53, 60, 0.76), rgba(30, 33, 39, 0.9));
+}
+
+.celular-home-painel-topo {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.celular-painel-indice {
+    color: var(--celular-texto);
+}
+
+.celular-painel-indice i {
+    color: var(--celular-discreto);
+    font-style: normal;
+}
+
+.celular-app-disponivel {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--celular-secundario);
+    font-size: 9px;
+}
+
+.celular-app-disponivel span {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #8cae98;
+}
+
+.celular-app {
+    display: grid;
+    width: 100%;
+    grid-template-columns: 54px minmax(0, 1fr) 20px;
+    align-items: center;
+    gap: 15px;
+    padding: 17px 0;
+    border: 0;
+    border-top: 1px solid var(--celular-linha);
+    border-bottom: 1px solid var(--celular-linha);
+    background: transparent;
+    color: var(--celular-texto);
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 160ms ease, padding 160ms ease;
+}
+
+.celular-app:hover {
+    padding-right: 5px;
+    padding-left: 5px;
+    background: rgba(255, 255, 255, 0.025);
+}
+
+.celular-app-icone {
+    display: grid;
+    width: 52px;
+    height: 52px;
+    place-items: center;
+    border: 1px solid rgba(179, 78, 93, 0.42);
+    border-radius: 15px;
+    background: linear-gradient(145deg, rgba(179, 78, 93, 0.28), rgba(110, 47, 58, 0.24));
+    color: #df9da3;
+}
+
+.celular-app-icone svg {
+    width: 25px;
+    height: 25px;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.5;
+}
+
+.celular-app-conteudo {
+    display: grid;
+    gap: 4px;
+}
+
+.celular-app-conteudo small {
+    color: #cc858c;
+    font: 9px var(--fonte-mono);
+    letter-spacing: 0.12em;
+}
+
+.celular-app-conteudo strong {
+    font-size: 17px;
+    font-weight: 600;
+}
+
+.celular-app-conteudo > span {
+    color: var(--celular-secundario);
+    font-size: 12px;
+}
+
+.celular-app-seta,
+.celular-link-atualizar svg,
+.celular-voltar svg,
+.celular-secundario svg,
+.celular-primario svg {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 auto;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.6;
+}
+
+.celular-app-seta {
+    color: var(--celular-discreto);
+}
+
+.celular-home-nota {
+    display: flex;
+    gap: 11px;
+}
+
+.celular-home-nota-linha {
+    width: 2px;
+    flex: 0 0 auto;
+    background: rgba(179, 78, 93, 0.65);
+}
+
+.celular-home-nota p {
+    color: var(--celular-secundario);
+    font-size: 11px;
+    line-height: 1.65;
+}
+
+.celular-link-atualizar {
+    display: inline-flex;
+    width: fit-content;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 0;
+    border: 0;
+    background: transparent;
+    color: var(--celular-secundario);
+    cursor: pointer;
+    font: 11px var(--fonte-mono);
+}
+
+.celular-link-atualizar:hover {
+    color: var(--celular-texto);
+}
+
+.celular-pagina {
+    min-height: 530px;
+}
+
+.celular-titulo-linha {
+    display: grid;
+    grid-template-columns: minmax(84px, 0.6fr) minmax(0, 2fr) minmax(90px, 0.6fr);
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 31px;
+}
+
+.celular-titulo-texto h2,
+.celular-identidade-contato h2 {
+    margin: 0;
+    color: var(--celular-texto);
+    font: 600 clamp(22px, 3vw, 30px)/1.2 var(--fonte-titulo);
+}
+
+.celular-titulo-texto .celular-sobrelinha,
+.celular-identidade-contato .celular-sobrelinha {
+    margin-bottom: 5px;
+}
+
+.celular-voltar,
+.celular-secundario {
+    display: inline-flex;
+    min-height: 40px;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 8px 10px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--celular-secundario);
+    cursor: pointer;
+    font: 11px var(--fonte-mono);
+    transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.celular-voltar {
+    justify-self: start;
+}
+
+.celular-secundario {
+    justify-self: end;
+    border-color: var(--celular-linha);
+}
+
+.celular-voltar:hover,
+.celular-secundario:hover {
+    border-color: var(--celular-linha-forte);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--celular-texto);
+}
+
+.celular-contatos-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(245px, 0.36fr);
+    gap: clamp(28px, 5vw, 60px);
+}
+
+.celular-contatos-secao {
+    min-width: 0;
+}
+
+.celular-secao-cabecalho {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    margin-bottom: 11px;
+    padding-bottom: 13px;
+    border-bottom: 1px solid var(--celular-linha);
+}
+
+.celular-secao-cabecalho h3,
+.celular-form-cabecalho h3 {
+    margin-top: 5px;
+    color: var(--celular-texto);
+    font: 600 16px var(--fonte-corpo);
+}
+
+.celular-contagem {
+    color: var(--celular-discreto);
+    font: 12px var(--fonte-mono);
+}
+
+.celular-lista-contatos {
+    display: grid;
+}
+
+.celular-contato {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    min-height: 78px;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 9px;
+    border: 0;
+    border-bottom: 1px solid var(--celular-linha);
+    background: transparent;
+    color: var(--celular-texto);
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 140ms ease, padding 140ms ease;
+}
+
+.celular-contato:hover {
+    padding-right: 13px;
+    padding-left: 13px;
+    background: rgba(255, 255, 255, 0.035);
+}
+
+.celular-avatar {
+    display: grid;
+    width: 43px;
+    height: 43px;
+    flex: 0 0 auto;
+    place-items: center;
+    border: 1px solid var(--celular-linha-forte);
+    border-radius: 50%;
+    background: #353a42;
+    color: #e5d8d6;
+    font: 500 15px var(--fonte-titulo);
+}
+
+.celular-contato-info {
+    display: grid;
+    min-width: 0;
+    flex: 1;
+    gap: 5px;
+}
+
+.celular-contato-info strong {
+    overflow: hidden;
+    font-size: 14px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.celular-contato-info small {
+    overflow: hidden;
+    color: var(--celular-secundario);
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.celular-contato-meta {
+    display: flex;
+    min-width: 34px;
+    flex-direction: column;
+    align-items: end;
+    gap: 5px;
+}
+
+.celular-contato-meta small {
+    color: var(--celular-discreto);
+    font: 10px var(--fonte-mono);
+}
+
+.celular-contato-seta {
+    color: var(--celular-discreto);
+    font: 20px/1 var(--fonte-corpo);
+}
+
+.celular-nao-lidas {
+    display: grid;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    place-items: center;
+    border-radius: 10px;
+    background: var(--celular-carmesim);
+    color: white;
+    font: 10px var(--fonte-mono);
+}
+
+.celular-form-contato {
+    display: grid;
+    align-content: start;
+    gap: 17px;
+    padding: 7px 0 0 clamp(20px, 3vw, 34px);
+    border-left: 1px solid var(--celular-linha);
+}
+
+.celular-form-cabecalho {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 5px;
+}
+
+.celular-form-icone,
+.celular-vazio-icone {
+    display: grid;
+    width: 38px;
+    height: 38px;
+    flex: 0 0 auto;
+    place-items: center;
+    border: 1px solid var(--celular-linha);
+    border-radius: 10px;
+    color: #d18c92;
+}
+
+.celular-form-icone svg,
+.celular-vazio-icone svg {
+    width: 21px;
+    height: 21px;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.5;
+}
+
+.celular-form-cabecalho h3 {
+    font-size: 14px;
+}
+
+.celular-form-contato label {
+    display: grid;
+    gap: 7px;
+    color: var(--celular-secundario);
+    font-size: 12px;
+}
+
+.celular-form-contato input,
+.celular-form-contato select,
+.celular-form-mensagem textarea {
+    width: 100%;
+    min-width: 0;
+    min-height: 45px;
+    padding: 11px 12px;
+    border: 1px solid var(--celular-linha-forte);
+    border-radius: 7px;
+    outline: none;
+    background: #1a1d22;
+    color: var(--celular-texto);
+    font: 13px var(--fonte-corpo);
+}
+
+.celular-form-contato select {
+    cursor: pointer;
+}
+
+.celular-form-contato input::placeholder,
+.celular-form-mensagem textarea::placeholder {
+    color: #858a92;
+}
+
+.celular-form-contato input:focus,
+.celular-form-contato select:focus,
+.celular-form-mensagem textarea:focus {
+    border-color: #bd737d;
+    box-shadow: 0 0 0 3px rgba(179, 78, 93, 0.16);
+}
+
+.celular-form-contato input:disabled,
+.celular-form-contato select:disabled,
+.celular-form-mensagem textarea:disabled {
+    cursor: not-allowed;
+    opacity: 0.72;
+}
+
+.celular-primario {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 10px 15px;
+    border: 1px solid #b86470;
+    border-radius: 7px;
+    background: #8d3d4a;
+    color: #fff;
+    cursor: pointer;
+    font: 600 12px var(--fonte-corpo);
+    transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.celular-primario:hover:not(:disabled) {
+    border-color: #d08790;
+    background: #a64d5a;
+}
+
+.celular-primario:disabled {
+    cursor: wait;
+    opacity: 0.65;
+}
+
+.celular-primario svg {
+    width: 16px;
+    height: 16px;
+}
+
+.celular-form-ajuda {
+    color: var(--celular-discreto);
+    font-size: 11px;
+    line-height: 1.55;
+}
+
+.celular-vazio {
+    display: grid;
+    min-height: 220px;
+    justify-items: center;
+    align-content: center;
+    padding: 24px;
+    text-align: center;
+}
+
+.celular-vazio .celular-sobrelinha {
+    margin: 16px 0 0;
+}
+
+.celular-vazio h3 {
+    margin-top: 7px;
+    font: 600 17px var(--fonte-corpo);
+}
+
+.celular-vazio > p:last-child {
+    max-width: 35ch;
+    margin-top: 7px;
+    color: var(--celular-secundario);
+    font-size: 12px;
+    line-height: 1.65;
+}
+
+.celular-vazio-conversa {
+    min-height: 270px;
+}
+
+.celular-conversa {
+    display: flex;
+    flex-direction: column;
+}
+
+.celular-identidade-contato {
+    min-width: 0;
+    gap: 12px;
+}
+
+.celular-avatar-cabecalho {
+    width: 47px;
+    height: 47px;
+}
+
+.celular-identidade-contato h2 {
+    overflow: hidden;
+    font: 600 18px var(--fonte-corpo);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.celular-identidade-contato > span:last-child > small {
+    color: var(--celular-secundario);
+    font-size: 11px;
+}
+
+.celular-conversa-corpo {
+    display: flex;
+    min-height: 300px;
+    flex: 1;
+    flex-direction: column;
+    justify-content: end;
+}
+
+.celular-mensagens {
+    display: flex;
+    max-height: min(48vh, 460px);
+    flex-direction: column;
+    gap: 13px;
+    overflow-y: auto;
+    padding: 22px 14px;
+    border-top: 1px solid var(--celular-linha);
+    border-bottom: 1px solid var(--celular-linha);
+    scrollbar-color: #575b62 transparent;
+}
+
+.celular-balao {
+    width: fit-content;
+    max-width: min(78%, 570px);
+    padding: 11px 14px 9px;
+    border: 1px solid var(--celular-linha);
+    border-radius: 12px 12px 12px 4px;
+    overflow-wrap: anywhere;
+    background: #2c3037;
+}
+
+.celular-remetente {
+    display: block;
+    margin-bottom: 5px;
+    color: #d8a0a4;
+    font: 10px var(--fonte-mono);
+}
+
+.celular-balao p {
+    color: var(--celular-texto);
+    font-size: 13px;
+    line-height: 1.65;
+    white-space: pre-wrap;
+}
+
+.celular-balao small {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 8px;
+    color: var(--celular-discreto);
+    font: 9px var(--fonte-mono);
+}
+
+.celular-saida {
+    align-self: flex-end;
+    border-color: rgba(179, 78, 93, 0.42);
+    border-radius: 12px 12px 4px 12px;
+    background: rgba(115, 53, 63, 0.36);
+}
+
+.celular-saida .celular-remetente {
+    color: #e7afb3;
+}
+
+.celular-form-mensagem {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 12px;
+    margin-top: 17px;
+    padding: 14px;
+    border: 1px solid var(--celular-linha);
+    border-radius: 10px;
+    background: rgba(25, 28, 33, 0.82);
+}
+
+.celular-compositor {
+    display: grid;
+    min-width: 0;
+    gap: 7px;
+}
+
+.celular-compositor-label {
+    color: var(--celular-discreto);
+    font-size: 9px;
+}
+
+.celular-form-mensagem textarea {
+    min-height: 65px;
+    resize: vertical;
+    line-height: 1.55;
+}
+
+.celular-enviar {
+    min-width: 108px;
+}
+
+.celular-estado {
+    padding: 30px 18px;
+    color: var(--celular-secundario);
+    text-align: center;
+}
+
+.celular-erro {
+    display: flex;
+    align-items: flex-start;
+    gap: 11px;
+    margin: 16px clamp(20px, 4vw, 42px) 0;
+    padding: 12px 14px;
+    border: 1px solid rgba(190, 104, 114, 0.5);
+    border-radius: 8px;
+    background: rgba(116, 49, 59, 0.22);
+    color: #f0c5c8;
+    font-size: 12px;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+}
+
+.celular-erro-marca {
+    display: grid;
+    width: 18px;
+    height: 18px;
+    flex: 0 0 auto;
+    place-items: center;
+    border: 1px solid currentColor;
+    border-radius: 50%;
+    font: 600 11px var(--fonte-mono);
+}
+
+.celular-carregando {
+    display: flex;
+    min-height: 420px;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    color: var(--celular-texto);
+}
+
+.celular-carregando > span:last-child {
+    display: grid;
+    gap: 5px;
+}
+
+.celular-carregando strong {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.celular-carregando small {
+    color: var(--celular-secundario);
+    font-size: 12px;
+}
+
+.celular-indicador-carregamento {
+    width: 22px;
+    height: 22px;
+    border: 2px solid var(--celular-linha-forte);
+    border-top-color: #cb7b84;
+    border-radius: 50%;
+    animation: celular-girar 700ms linear infinite;
+}
+
+.celular-shell button:focus-visible,
+.celular-shell input:focus-visible,
+.celular-shell select:focus-visible,
+.celular-shell textarea:focus-visible {
+    outline: 2px solid #d48b94;
+    outline-offset: 3px;
+}
+
+.visualmente-oculto {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+}
+
+@keyframes celular-girar {
+    to { transform: rotate(360deg); }
+}
+
+@media (max-width: 900px) {
+    .celular-shell {
+        min-height: min(700px, calc(100vh - 110px));
+    }
+
+    .celular-inicio {
+        gap: 30px;
+    }
+
+    .celular-contatos-layout {
+        grid-template-columns: minmax(0, 1fr) minmax(220px, 0.46fr);
+        gap: 25px;
+    }
+}
+
+@media (max-width: 650px) {
+    .celular-shell {
+        min-height: calc(100vh - 174px);
+        border-radius: 12px;
+    }
+
+    .celular-cabecalho {
+        min-height: 66px;
+        padding: 11px 16px;
+    }
+
+    .celular-marca-icone {
+        width: 34px;
+        height: 34px;
+    }
+
+    .celular-sessao {
+        gap: 7px;
+        font-size: 9px;
+    }
+
+    .celular-sessao-label {
+        display: none;
+    }
+
+    .celular-sessao strong {
+        max-width: 15ch;
+    }
+
+    .celular-inicio,
+    .celular-pagina {
+        padding: 24px 18px;
+    }
+
+    .celular-inicio {
+        min-height: 0;
+        grid-template-columns: 1fr;
+        gap: 32px;
+        align-content: center;
+    }
+
+    .celular-home-intro h1 {
+        font-size: clamp(37px, 11vw, 54px);
+    }
+
+    .celular-home-descricao {
+        margin-top: 14px;
+        font-size: 13px;
+    }
+
+    .celular-vinculo {
+        margin-top: 22px;
+    }
+
+    .celular-home-painel {
+        gap: 15px;
+        padding: 18px;
+    }
+
+    .celular-pagina {
+        min-height: auto;
+    }
+
+    .celular-titulo-linha {
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 8px;
+        margin-bottom: 22px;
+    }
+
+    .celular-voltar,
+    .celular-secundario {
+        min-height: 38px;
+        padding: 7px;
+        font-size: 10px;
+    }
+
+    .celular-contatos-layout {
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
+
+    .celular-form-contato {
+        gap: 13px;
+        padding: 19px 0 0;
+        border-top: 1px solid var(--celular-linha);
+        border-left: 0;
+    }
+
+    .celular-form-ajuda {
+        margin-top: -7px;
+    }
+
+    .celular-identidade-contato {
+        gap: 8px;
+    }
+
+    .celular-avatar-cabecalho {
+        width: 38px;
+        height: 38px;
+    }
+
+    .celular-identidade-contato h2 {
+        font-size: 14px;
+    }
+
+    .celular-identidade-contato .celular-sobrelinha {
+        font-size: 8px;
+    }
+
+    .celular-identidade-contato > span:last-child > small {
+        font-size: 10px;
+    }
+
+    .celular-atualizar-conversa {
+        width: 38px;
+        overflow: hidden;
+        font-size: 0;
+    }
+
+    .celular-conversa .celular-titulo-linha {
+        grid-template-columns: auto minmax(0, 1fr) auto;
+    }
+
+    .celular-conversa-corpo {
+        min-height: 280px;
+    }
+
+    .celular-mensagens {
+        max-height: 48vh;
+        padding: 16px 4px;
+    }
+
+    .celular-balao {
+        max-width: 88%;
+    }
+
+    .celular-form-mensagem {
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px;
+        padding: 10px;
+    }
+
+    .celular-enviar {
+        min-width: 44px;
+        width: 44px;
+        padding: 10px;
+        font-size: 0;
+    }
+
+    .celular-enviar svg {
+        width: 18px;
+        height: 18px;
+    }
+}
+
+@media (max-width: 768px) {
+    body:has(.celular-shell) .header-sistema {
+        height: auto;
+        min-height: 58px;
+        gap: 8px;
+        padding: 7px 10px;
+    }
+
+    body:has(.celular-shell) .header-esquerda {
+        min-width: 0;
+        gap: 8px;
+    }
+
+    body:has(.celular-shell) .logo-sistema {
+        gap: 8px;
+    }
+
+    body:has(.celular-shell) .logo-emblema {
+        width: 30px;
+        height: 30px;
+        flex: 0 0 auto;
+    }
+
+    body:has(.celular-shell) .logo-texto-principal {
+        font-size: 12px;
+    }
+
+    body:has(.celular-shell) .logo-texto-sub,
+    body:has(.celular-shell) .caso-ativo-badge,
+    body:has(.celular-shell) .perfil-info {
+        display: none;
+    }
+
+    body:has(.celular-shell) .header-direita {
+        min-width: 0;
+        gap: 7px;
+    }
+
+    body:has(.celular-shell) .relogio-bloco {
+        min-width: 0;
+        max-width: 125px;
+        gap: 5px;
+        padding: 6px 7px;
+        overflow: hidden;
+        font-size: 9px;
+        white-space: nowrap;
+    }
+
+    body:has(.celular-shell) .relogio-bloco span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    body:has(.celular-shell) .perfil-bloco {
+        padding-left: 0;
+        border-left: 0;
+    }
+
+    body:has(.celular-shell) .perfil-avatar {
+        width: 30px;
+        height: 30px;
+        flex: 0 0 auto;
+        font-size: 11px;
+    }
+
+    body:has(.celular-shell) .btn-icone {
+        width: 31px;
+        height: 31px;
+        flex: 0 0 auto;
+    }
+
+    body:has(.celular-shell) .corpo-sistema {
+        min-height: 0;
+        flex-direction: column;
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+
+    body:has(.celular-shell) .sidebar {
+        width: 100%;
+        height: auto;
+        max-height: none;
+        flex: 0 0 auto;
+        justify-content: flex-start;
+        padding: 7px 8px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        border-right: 0;
+        border-bottom: 1px solid var(--cinza-borda);
+    }
+
+    body:has(.celular-shell) .menu-navegacao {
+        width: max-content;
+        min-width: 100%;
+        flex-direction: row;
+        gap: 4px;
+    }
+
+    body:has(.celular-shell) .menu-secao-rotulo,
+    body:has(.celular-shell) .sidebar-rodape {
+        display: none;
+    }
+
+    body:has(.celular-shell) .nav-item {
+        min-height: 36px;
+        flex: 0 0 auto;
+        gap: 7px;
+        padding: 7px 9px;
+        font-size: 11px;
+        white-space: nowrap;
+    }
+
+    body:has(.celular-shell) .nav-item-icone {
+        width: 16px;
+        height: 16px;
+    }
+
+    body:has(.celular-shell) .nav-item-badge:not(.nav-vivo) {
+        display: none;
+    }
+
+    body:has(.celular-shell) .area-principal {
+        width: 100%;
+        min-width: 0;
+        flex: 1 0 auto;
+        overflow: visible;
+        padding: 12px;
+    }
+}
+
+@media (max-width: 380px) {
+    .celular-sessao strong {
+        max-width: 10ch;
+    }
+
+    .celular-titulo-linha {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .celular-titulo-linha > .celular-secundario {
+        grid-column: 2;
+        justify-self: start;
+    }
+
+    .celular-conversa .celular-titulo-linha {
+        grid-template-columns: auto minmax(0, 1fr) auto;
+    }
+
+    .celular-voltar span {
+        font-size: 0;
+    }
+
+    .celular-voltar svg {
+        width: 20px;
+        height: 20px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .celular-shell *,
+    .celular-shell *::before,
+    .celular-shell *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+@media (max-width: 768px) {
+    body:has(.app-container) .corpo-sistema {
+        position: relative;
+        min-width: 0;
+        overflow: visible;
+    }
+
+    body:has(.app-container) .corpo-sistema .sidebar {
+        position: absolute;
+        z-index: 20;
+        top: 0;
+        left: 0;
+        display: flex;
+        width: min(320px, calc(100vw - 24px));
+        height: auto;
+        max-height: calc(100vh - 124px);
+        max-height: calc(100dvh - 124px);
+        flex: 0 0 auto;
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: flex-start;
+        gap: 8px;
+        padding: 8px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 0 0 8px 0;
+        background: linear-gradient(180deg, #11141d, #0d0f16 80%);
+        box-shadow: 0 16px 34px rgba(0, 0, 0, 0.42);
+        transition: transform 180ms ease, opacity 180ms ease;
+    }
+
+    body:has(.app-container) .corpo-sistema.navegacao-mobile-fechada .sidebar {
+        position: relative;
+        top: auto;
+        left: auto;
+        width: 100%;
+        height: 48px;
+        max-height: none;
+        flex-basis: 48px;
+        align-items: flex-start;
+        padding: 2px 8px;
+        overflow: visible;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+    }
+
+    body:has(.app-container) .corpo-sistema .sidebar-alternar {
+        width: 100%;
+        min-width: 0;
+        min-height: 44px;
+        flex: 0 0 44px;
+        justify-content: space-between;
+        padding: 0 12px;
+        border-color: rgba(255, 255, 255, 0.08);
+        background: rgba(18, 21, 30, 0.96);
+        color: #d9dce2;
+        font-size: 11px;
+    }
+
+    body:has(.app-container) .corpo-sistema.navegacao-mobile-fechada .sidebar-alternar {
+        width: 44px;
+        justify-content: center;
+        padding: 0;
+        border-color: transparent;
+        background: transparent;
+    }
+
+    body:has(.app-container) .corpo-sistema.navegacao-mobile-fechada .sidebar-alternar-texto {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+    }
+
+    body:has(.app-container) .corpo-sistema .menu-navegacao {
+        display: flex;
+        width: 100%;
+        min-width: 0;
+        min-height: 0;
+        flex: 1 1 auto;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 2px;
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        scrollbar-width: thin;
+    }
+
+    body:has(.app-container) .corpo-sistema.navegacao-mobile-fechada .menu-navegacao {
+        display: none;
+    }
+
+    body:has(.app-container) .corpo-sistema .menu-secao-rotulo {
+        display: block;
+        position: static;
+        width: auto;
+        height: auto;
+        overflow: visible;
+        flex: 0 0 auto;
+        clip: auto;
+        white-space: normal;
+    }
+
+    body:has(.app-container) .corpo-sistema .nav-item {
+        width: 100%;
+        min-width: 0;
+        min-height: 44px;
+        flex: 0 0 auto;
+        justify-content: flex-start;
+        gap: 11px;
+        padding: 9px 12px;
+        white-space: normal;
+    }
+
+    body:has(.app-container) .corpo-sistema .nav-item > span:not(.nav-item-badge) {
+        position: static;
+        width: auto;
+        height: auto;
+        min-width: 0;
+        overflow: visible;
+        clip: auto;
+        overflow-wrap: anywhere;
+        white-space: normal;
+    }
+
+    body:has(.app-container) .corpo-sistema .nav-item-badge {
+        position: static;
+        display: inline-flex;
+        width: auto;
+        height: auto;
+        overflow: visible;
+        clip: auto;
+        flex: 0 0 auto;
+        margin-right: 0;
+        margin-left: auto;
+        white-space: nowrap;
+    }
+
+    body:has(.app-container) .corpo-sistema .nav-item.ativo {
+        box-shadow: inset 2px 0 0 #bd6c77;
+    }
+
+    body:has(.app-container) .corpo-sistema .nav-item.ativo::after {
+        right: 12px;
+    }
+
+    body:has(.app-container) .corpo-sistema .sidebar-rodape {
+        position: static;
+        display: block;
+        width: auto;
+        height: auto;
+        overflow: visible;
+        clip: auto;
+        flex: 0 0 auto;
+        padding: 8px 2px 0;
+    }
+
+    body:has(.app-container) .corpo-sistema.navegacao-mobile-fechada .sidebar-rodape {
+        display: none;
+    }
+
+    body:has(.app-container) .corpo-sistema .area-principal {
+        width: 100%;
+        min-width: 0;
+        flex: 1 1 auto;
+    }
+
+    body:has(.app-container) .corpo-sistema.navegacao-mobile-fechada.sidebar-recolhida .nav-item > span,
+    body:has(.app-container) .corpo-sistema.navegacao-mobile-fechada.sidebar-recolhida .menu-secao-rotulo {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+    }
+
+    body:has(.app-container) .corpo-sistema:not(.navegacao-mobile-fechada).sidebar-recolhida .sidebar-alternar-texto {
+        position: static;
+        width: auto;
+        height: auto;
+        overflow: visible;
+        clip: auto;
+        white-space: normal;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .corpo-sistema .sidebar,
+    .corpo-sistema .sidebar-alternar,
+    .corpo-sistema .menu-navegacao {
+        transition-duration: 0.01ms !important;
+    }
+}
