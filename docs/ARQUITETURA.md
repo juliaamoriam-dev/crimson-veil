@@ -336,7 +336,13 @@ Para manter a simplicidade técnica:
 * Persistência inicial: SQLite com `JdbcTemplate`, snapshot JSON e colunas tipadas do WORLD_STATE.
 * Integração HTTP/JSON sem IA, hospedagem ou serviço pago obrigatório.
 
-### 13.3. Itens que Permanecem `A DEFINIR`
-* Provedor e modelo específico de IA (OpenAI, Gemini, local, etc.).
-* Mecânica exata do validador de agência (regex/heurística leve vs. chamada rápida de julgamento).
+### 13.3. Decisões do Marco 2 (IA Narradora com Google Gemini)
+* Provedor oficial: Google Gemini (`generativelanguage.googleapis.com`), modelo padrão configurável `gemini-2.5-flash` via `crimson-veil.gemini.model`.
+* Autenticação segura: exclusivamente por variável de ambiente `GEMINI_API_KEY` injetada via header `x-goog-api-key`.
+* Endpoint unificado: `POST /api/v1/campanhas/{id}/narrativa/acao`.
+* Validação de agência: `ValidadorAgencia` aplicando salvaguardas baseadas nas regras do `MASTER_PROMPT_V1.md`.
+* Persistência determinística: o SQLite permanece a autoridade absoluta; a IA propõe o texto e o backend atualiza versões, histórico e tempo relacional.
+
+### 13.4. Itens que Permanecem `A DEFINIR`
 * Mecanismo definitivo de autenticação de usuários (JWT stateless vs. Cookie/Session simples).
+* Autonomia de NPCs além da cena imediata em segundo plano.

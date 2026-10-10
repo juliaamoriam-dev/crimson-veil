@@ -5,6 +5,7 @@ import {
     carregarCampanha,
     carregarPerfilPersonagem,
     criarCampanha,
+    executarAcaoNarrativa,
     listarCampanhas,
     migrarCampanhaCanonica,
     salvarAcao,
@@ -132,4 +133,75 @@ test('erro HTTP e erro de rede são reportados explicitamente', async () => {
 
     globalThis.fetch = async () => { throw new Error('servidor indisponível'); };
     await assert.rejects(carregarCampanha('camp-001'), /Não foi possível comunicar com o backend/);
+});
+
+test('API executa ação narrativa chamando endpoint oficial com chave de idempotência', async () => {
+    let capturedRequest;
+    globalThis.fetch = async (url, options) => {
+        capturedRequest = { url, options };
+        return Response.json({
+            campanha: { id: 'camp-001', contadorAcoes: 1 },
+            versao: 2,
+            repetida: false,
+            textoNarracao: 'Adrian fecha a pasta e olha para a porta.',
+            modelo: 'gemini-2.5-flash',
+            horarioAtual: '03:35',
+            duracaoMinutos: 5
+        });
+    };
+
+    const operacao = {
+        chaveOperacao: 'op-narrativa-1',
+        versaoEsperada: 1,
+        acao: 'Examinar a escrivaninha de Arthur'
+    };
+
+    const resposta = await executarAcaoNarrativa('camp-001', operacao);
+    assert.equal(capturedRequest.url, 'http://localhost:8080/api/v1/campanhas/camp-001/narrativa/acao');
+    assert.equal(capturedRequest.options.method, 'POST');
+    assert.equal(capturedRequest.options.headers['Idempotency-Key'], 'op-narrativa-1');
+    assert.equal(resposta.textoNarracao, 'Adrian fecha a pasta e olha para a porta.');
+    assert.equal(resposta.versao, 2);
+    assert.equal(resposta.duracaoMinutos, 5);
+});
+
+test('API propaga erro 503 quando configuração da IA está pendente', async () => {
+    globalThis.fetch = async () => Response.json(
+        { mensagem: 'A integração com a IA requer a variável de ambiente GEMINI_API_KEY configurada no servidor.' },
+        { status: 503 }
+    );
+
+    await assert.rejects(
+        () => executarAcaoNarrativa('camp-001', { chaveOperacao: 'op-1', versaoEsperada: 1, acao: 'Ação' }),
+        (error) => error instanceof ApiError && error.status === 503 && error.message.includes('GEMINI_API_KEY')
+    );
+});
+
+test('API retorna sugestões narrativas dinâmicas na resposta da ação', async () => {
+    globalThis.fetch = async () => Response.json({
+        campanha: { id: 'camp-001', contadorAcoes: 2 },
+        versao: 3,
+        repetida: false,
+        textoNarracao: 'Noah encontra um arquivo corrompido nos logs da DCE.',
+        modelo: 'gemini-2.5-flash',
+        horarioAtual: '03:40',
+        duracaoMinutos: 5,
+        sugestoes: [
+            'Recuperar o cabeçalho corrompido do arquivo',
+            'Perguntar a Noah sobre o IP de origem',
+            'Examinar o histórico de logins no servidor'
+        ]
+    });
+
+    const resposta = await executarAcaoNarrativa('camp-001', {
+        chaveOperacao: 'op-sugestoes-teste',
+        versaoEsperada: 2,
+        acao: 'Pedir a Noah para analisar o drive'
+    });
+
+    assert.equal(Array.isArray(resposta.sugestoes), true);
+    assert.equal(resposta.sugestoes.length, 3);
+    assert.equal(resposta.sugestoes[0], 'Recuperar o cabeçalho corrompido do arquivo');
+    assert.equal(resposta.sugestoes[1], 'Perguntar a Noah sobre o IP de origem');
+    assert.equal(resposta.sugestoes[2], 'Examinar o histórico de logins no servidor');
 });

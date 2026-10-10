@@ -179,7 +179,7 @@ public class CampanhaService {
         return resposta;
     }
 
-    private void persistirComplementos(String id, Map<String, Object> campaign) {
+    public void persistirComplementos(String id, Map<String, Object> campaign) {
         Object world = campaign.get("estadoMundo");
         if (!(world instanceof Map<?, ?> worldState)) {
             throw new RegraCampanhaException("O estado do mundo da campanha está ausente.");
@@ -270,7 +270,7 @@ public class CampanhaService {
         return result;
     }
 
-    private CampanhaRegistro buscarObrigatoria(String id) {
+    public CampanhaRegistro buscarObrigatoria(String id) {
         CampanhaRegistro registro = repository.buscar(id)
                 .orElseThrow(() -> new CampanhaNaoEncontradaException(id));
         Map<String, Object> campanha = personagemService.assegurarEAplicarPerfil(registro.campanha());
@@ -290,7 +290,7 @@ public class CampanhaService {
         return value == null ? "" : value.toString();
     }
 
-    private String serializar(Object value) {
+    public String serializar(Object value) {
         try {
             return mapper.writeValueAsString(value);
         } catch (JsonProcessingException exception) {

@@ -67,6 +67,16 @@ public class ManipuladorGlobalExcecoes {
         return resposta(HttpStatus.BAD_REQUEST, "Corpo da requisição inválido ou malformado.");
     }
 
+    @ExceptionHandler(ConfiguracaoIaPendenteException.class)
+    public ResponseEntity<ErroApiResposta> configuracaoIaPendente(ConfiguracaoIaPendenteException exception) {
+        return resposta(HttpStatus.SERVICE_UNAVAILABLE, exception.getMessage());
+    }
+
+    @ExceptionHandler(FalhaIntegracaoIaException.class)
+    public ResponseEntity<ErroApiResposta> falhaIntegracaoIa(FalhaIntegracaoIaException exception) {
+        return resposta(HttpStatus.BAD_GATEWAY, exception.getMessage());
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErroApiResposta> erroInterno(Exception exception) {
         LOGGER.error("Falha não tratada na API", exception);

@@ -1,6 +1,6 @@
 /**
  * Crimson Veil — Aplicação Frontend (Protótipo Navegável Oficial)
- * 
+ *
  * Cidade de Blackwood // Divisão de Crimes Especiais (DCE)
  * Integrado ao elenco oficial: Milena, Adrian, Helena, Noah, Maya, Iris, Sofia, Evelyn.
  */
@@ -29,6 +29,7 @@ import {
     carregarCampanha,
     carregarPerfilPersonagem,
     criarCampanha,
+    executarAcaoNarrativa,
     listarCampanhas,
     migrarCampanhaCanonica,
     salvarAcao,
@@ -2134,7 +2135,11 @@ function renderizarInvestigacao() {
 
     // Chips de sugestão contextual
     let htmlChipsSugestao = "";
-    if (casoAtivo) {
+    if (campAtiva.sugestoesAcoes && Array.isArray(campAtiva.sugestoesAcoes) && campAtiva.sugestoesAcoes.length > 0) {
+        htmlChipsSugestao = campAtiva.sugestoesAcoes.map(sugestao => `
+            <button class="btn-chip" data-acao="${escaparHTML(sugestao)}" title="${escaparHTML(sugestao)}">${escaparHTML(sugestao)}</button>
+        `).join('');
+    } else if (casoAtivo) {
         htmlChipsSugestao = `
             <button class="btn-chip" data-acao="${primeiroNome} se aproxima da mesa de Arthur e examina as anotações sobre o Instituto Ardens e o símbolo.">Examinar anotações na mesa</button>
             <button class="btn-chip" data-acao="${primeiroNome} pergunta à Dra. Maya Navarro se há marcas no corpo ou sinais de veneno incomum.">Interrogar Dra. Maya</button>
@@ -2357,8 +2362,8 @@ function configurarNavegacaoContexto() {
  */
 function gerarHtmlMensagensCena() {
     const campAtiva = gerenciadorCampanhas.campanhaAtiva();
-    const nomeProtagonista = (campAtiva.protagonista && campAtiva.protagonista.nome) 
-        ? campAtiva.protagonista.nome.toUpperCase() 
+    const nomeProtagonista = (campAtiva.protagonista && campAtiva.protagonista.nome)
+        ? campAtiva.protagonista.nome.toUpperCase()
         : 'INVESTIGADOR';
     const escaparHTML = valor => String(valor ?? '').replace(/[&<>"']/g, caractere => ({
         '&': '&amp;',
@@ -2410,32 +2415,66 @@ function configurarInteracaoTerminal() {
     const inputAcao = document.getElementById('input-acao');
     const btnEnviar = document.getElementById('btn-enviar-acao');
     const historicoBox = document.getElementById('terminal-historico');
-    const chipsSugestao = document.querySelectorAll('.btn-chip');
+    const containerSugestoes = document.querySelector('.sugestoes-acoes');
     const campanhaId = gerenciadorCampanhas.campanhaAtiva().id;
 
-    chipsSugestao.forEach(chip => {
-        chip.addEventListener('click', () => {
-            inputAcao.value = chip.getAttribute('data-acao');
-            inputAcao.focus();
+    const alternarEstadoChips = (desabilitar) => {
+        if (!containerSugestoes) return;
+        const chips = containerSugestoes.querySelectorAll('.btn-chip');
+        chips.forEach(chip => {
+            chip.disabled = desabilitar;
         });
-    });
+    };
 
-    const persistirOperacao = async (operacao) => {
+    const vincularEventosChips = () => {
+        if (!containerSugestoes) return;
+        const chips = containerSugestoes.querySelectorAll('.btn-chip');
+        chips.forEach(chip => {
+            chip.addEventListener('click', async () => {
+                if (btnEnviar.disabled) return;
+                const textoAcao = chip.getAttribute('data-acao');
+                if (!textoAcao) return;
+                inputAcao.value = textoAcao;
+                await submeterAcao();
+            });
+        });
+    };
+
+    const atualizarChipsSugestao = (novasSugestoes) => {
+        if (!containerSugestoes || !Array.isArray(novasSugestoes) || novasSugestoes.length === 0) {
+            return;
+        }
+        containerSugestoes.innerHTML = novasSugestoes.map(sugestao => `
+            <button class="btn-chip btn-chip-novo" data-acao="${escaparHTML(sugestao)}" title="${escaparHTML(sugestao)}">${escaparHTML(sugestao)}</button>
+        `).join('');
+        vincularEventosChips();
+    };
+
+    vincularEventosChips();
+
+    const persistirOperacaoNarrativa = async (operacao) => {
         btnEnviar.disabled = true;
-        btnEnviar.innerHTML = `<span>Salvando...</span>`;
+        alternarEstadoChips(true);
+        btnEnviar.innerHTML = `<span>Consultando Narrador...</span>`;
         try {
-            const resposta = await salvarAcao(campanhaId, operacao);
+            const resposta = await executarAcaoNarrativa(campanhaId, operacao);
             gerenciadorCampanhas.substituirCampanhaPersistida(resposta.campanha, resposta.versao);
             gerenciadorCampanhas.operacoesPendentes.delete(campanhaId);
             if (gerenciadorCampanhas.campanhaAtiva().id === campanhaId) {
                 estadoLocal.mensagensCena = [...resposta.campanha.mensagensCena];
-                estadoLocal.pistasDesc = [...resposta.campanha.pistas];
+                estadoLocal.pistasDesc = [...(resposta.campanha.pistas || [])];
                 estadoLocal.horarioAtual = resposta.campanha.estadoMundo.horarioAtual;
                 estadoLocal.contadorAcoes = resposta.campanha.contadorAcoes;
                 inputAcao.value = '';
                 atualizarRelogioUI();
                 historicoBox.innerHTML = gerarHtmlMensagensCena();
                 historicoBox.scrollTop = historicoBox.scrollHeight;
+
+                const listaSugestoes = resposta.sugestoes || resposta.campanha.sugestoesAcoes;
+                if (listaSugestoes && Array.isArray(listaSugestoes)) {
+                    gerenciadorCampanhas.campanhaAtiva().sugestoesAcoes = listaSugestoes;
+                    atualizarChipsSugestao(listaSugestoes);
+                }
             }
         } catch (erro) {
             if (erro instanceof ApiError && erro.status === 409) {
@@ -2447,8 +2486,13 @@ function configurarInteracaoTerminal() {
                     return;
                 }
             }
-            alert(`A ação não foi confirmada pelo backend. O estado local foi preservado. ${erro.message}`);
+            if (erro instanceof ApiError && erro.status === 503) {
+                alert(`Configuração pendente: ${erro.message}\nO texto digitado foi preservado no campo de ação.`);
+            } else {
+                alert(`A narração não foi processada pelo backend. O texto digitado foi preservado. ${erro.message}`);
+            }
         } finally {
+            alternarEstadoChips(false);
             btnEnviar.disabled = false;
             btnEnviar.innerHTML = `
                 <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
@@ -2462,105 +2506,20 @@ function configurarInteracaoTerminal() {
         const operacaoPendente = gerenciadorCampanhas.operacoesPendentes.get(campanhaId);
         if (operacaoPendente) {
             inputAcao.value = operacaoPendente.acao;
-            await persistirOperacao(operacaoPendente);
+            await persistirOperacaoNarrativa(operacaoPendente);
             return;
         }
 
         const textoAcao = inputAcao.value.trim();
         if (!textoAcao) return;
 
-        const original = gerenciadorCampanhas.campanhaAtiva();
-        const campAtiva = JSON.parse(JSON.stringify(original));
         const operacao = {
             chaveOperacao: `acao-${campanhaId}-${crypto.randomUUID()}`,
             versaoEsperada: gerenciadorCampanhas.versaoDaCampanha(campanhaId),
-            acao: textoAcao,
-            campanha: campAtiva
+            acao: textoAcao
         };
         gerenciadorCampanhas.operacoesPendentes.set(campanhaId, operacao);
-        campAtiva.mensagensCena.push({
-            tipo: 'JOGADOR',
-            conteudo: textoAcao,
-            horario: campAtiva.estadoMundo.horarioAtual
-        });
-        campAtiva.eventLog.push({
-            tipo: 'ACAO_PROTAGONISTA',
-            descricao: textoAcao,
-            horario: campAtiva.estadoMundo.horarioAtual
-        });
-
-        btnEnviar.disabled = true;
-        btnEnviar.innerHTML = `<span>Processando...</span>`;
-        await new Promise(resolve => setTimeout(resolve, 600));
-
-        // 2. Simula resposta narrativa reativa dependendo se há caso ativo ou se é prólogo
-        {
-            campAtiva.contadorAcoes++;
-            
-            // Avanço determinístico do tempo (substitui cálculo defeituoso anterior)
-            const duracaoAcao = calcularDuracaoAcao(textoAcao);
-            const idAcao = `acao-${campAtiva.id}-${campAtiva.contadorAcoes}`;
-            aplicarAvancoTempo(campAtiva.estadoMundo, duracaoAcao, idAcao);
-
-            // Verifica eventos do mundo vivo após o avanço de tempo
-            const eventosProcessados = verificarEventosMundo(campAtiva);
-            // Contexto atual do mundo disponível para o Narrative Engine
-            // (não exibido ao jogador diretamente — usado para consistência narrativa)
-            const _contextoMundo = gerarContextoMundo(campAtiva);
-
-            let respostaSimulada = "";
-            const nomeProt = campAtiva.protagonista.nome;
-
-            if (campAtiva.casoAtivo) {
-                // Caso 001 ativo — tom: investigação policial de série de TV
-                if (textoAcao.toLowerCase().includes('maya') || textoAcao.toLowerCase().includes('veneno') || textoAcao.toLowerCase().includes('corpo')) {
-                    // Verifica o estado real da Maya no mundoVivo antes de responder
-                    const localMaya = campAtiva.mundoVivo
-                        ? (campAtiva.mundoVivo.estadoNPCs['Maya'] || {}).local
-                        : 'Apartamento 504';
-                    if (localMaya && localMaya !== 'Apartamento 504') {
-                        // Maya já saiu para o necrotério — mundo reflete esse estado
-                        respostaSimulada = `Helena olha para o corredor e depois de volta para você.\n\nHelena: — Maya já foi. Levou o corpo para o necrotério há pouco.\n\nUma pausa.\n\nHelena: — Ela disse que liga quando tiver alguma coisa. Você pode tentar o rádio se for urgente.`;
-                    } else {
-                        respostaSimulada = `Maya olha para cima brevemente, sem parar o que está fazendo.\n\nMaya: — Nenhum trauma externo. Sem marcas, sem odor característico, sem sinal de luta. O coração simplesmente parou.\n\nEla volta ao trabalho.\n\nMaya: — Não sei o que causou isso ainda. Preciso do necrotério para te dar uma resposta de verdade.\n\nHelena: — Quanto tempo?\n\nMaya: — Menos se você parar de me interromper.`;
-                    }
-                } else if (textoAcao.toLowerCase().includes('noah') || textoAcao.toLowerCase().includes('rádio') || textoAcao.toLowerCase().includes('elevador')) {
-                    respostaSimulada = `O rádio crepita.\n\nNoah: — Aqui. Tô com os logs do elevador na tela. O sistema parou por 53 segundos exatos entre o terceiro e o quarto andar. Sem falha elétrica, sem acionamento de alarme.\n\nUma pausa. Som de teclado ao fundo.\n\nNoah: — Tem uma irregularidade de frequência nesse intervalo. Ainda estou analisando. Preciso de mais tempo.\n\nAdrian: — Quanto tempo?\n\nNoah: — Mais do que você quer ouvir.\n\nAdrian: — Liberdade total até as cinco da manhã.\n\nNoah: — Então talvez menos.`;
-                } else if (textoAcao.toLowerCase().includes('adrian') || textoAcao.toLowerCase().includes('depósito') || textoAcao.toLowerCase().includes('terminal')) {
-                    respostaSimulada = `Adrian abre o tablet e passa uma imagem aérea do local.\n\nAdrian: — Depósito 217. Terminal ferroviário antigo, zona leste. Desativado há quinze anos.\n\nHelena: — Helena conferiu o registro de propriedade hoje cedo. A concessão está ligada a uma empresa que não aparecia em lugar nenhum antes.\n\nAdrian: — Então vai para a lista. Quando a perícia liberar essa sala, continuamos de lá.`;
-                } else {
-                    respostaSimulada = `Helena circula a escrivaninha e olha os papéis espalhados.\n\nHelena: — Recortes. Datas diferentes, mas o mesmo símbolo aparecendo em todos. E essa frase aqui — marcada duas vezes.\n\nEla aponta para a anotação marginal de Arthur.\n\nHelena: — 'Eles não desaparecem. Eles são apagados.'\n\nAdrian: — Alguém rastreou a origem desse símbolo?\n\nHelena: — Ainda não.\n\nAdrian: — Então é por onde a gente começa.`;
-                }
-            } else {
-                // Prólogo no Saguão da DCE — tom: chegada, apresentação, rotina
-                if (textoAcao.toLowerCase().includes('adrian') || textoAcao.toLowerCase().includes('ordem') || textoAcao.toLowerCase().includes('apresentar')) {
-                    respostaSimulada = `Adrian levanta os olhos da pasta.\n\nAdrian: — A DCE cuida dos casos que os distritos devolvem sem solução. Se você está aqui, a gente assume que sabe a diferença.\n\nEle fecha o arquivo.\n\nAdrian: — Quando estiver pronto, dá uma olhada nos inquéritos em aberto. Tem coisa esperando atenção.`;
-                } else if (textoAcao.toLowerCase().includes('noah') || textoAcao.toLowerCase().includes('terminal') || textoAcao.toLowerCase().includes('sistema')) {
-                    respostaSimulada = `Noah gira na cadeira sem tirar os olhos dos monitores.\n\nNoah: — Terminal configurado. Você tem acesso total à rede interna.\n\nEle finalmente olha para cima.\n\nNoah: — Quando pegar um dossiê, me avisa. Eu sincronizo câmeras e rádio do setor em menos de dois minutos. Mais rápido se eu não tiver mais nada aberto.\n\nUma pausa.\n\nNoah: — Que, pra ser honesto, raramente acontece.`;
-                } else if (textoAcao.toLowerCase().includes('caso') || textoAcao.toLowerCase().includes('arquivo') || textoAcao.toLowerCase().includes('inquérito')) {
-                    respostaSimulada = `Noah digita sem olhar.\n\nNoah: — Tem um inquérito de alta prioridade aberto hoje. Caso #001. Morte no Apartamento 504, zona central.\n\nEle passa uma tela com o resumo do dossiê.\n\nNoah: — Vai aparecer na aba de Casos com tudo que temos até agora. Que não é muito — mas é um começo.`;
-                } else {
-                    respostaSimulada = `A central da DCE funciona em ritmo baixo nessa hora da noite. Teclados. Rádio em volume mínimo.\n\nAdrian aparece com uma pasta e coloca sobre a mesa.\n\nAdrian: — Quando quiser começar, a aba de Casos tem o que temos em aberto.\n\nEle não espera resposta e volta ao trabalho.\n\nNoah comenta sem levantar a cabeça dos monitores.\n\nNoah: — Ele é assim com todo mundo. Não leva a mal.`;
-                }
-            }
-
-            campAtiva.mensagensCena.push({
-                tipo: 'NARRADOR',
-                conteudo: respostaSimulada,
-                horario: campAtiva.estadoMundo.horarioAtual
-            });
-
-            campAtiva.eventLog.push({
-                tipo: 'RESPOSTA_NARRATIVA',
-                descricao: `Resposta narrativa no horário ${campAtiva.estadoMundo.horarioAtual}`,
-                horario: campAtiva.estadoMundo.horarioAtual
-            });
-            campAtiva.ultimaAtividade = `Hoje, ${campAtiva.estadoMundo.horarioAtual}`;
-            campAtiva.progresso = campAtiva.casoAtivo
-                ? `Ações: ${campAtiva.contadorAcoes} | ${campAtiva.casoAtivo.codigo}`
-                : `Ações: ${campAtiva.contadorAcoes} | Prólogo`;
-        }
-        await persistirOperacao(operacao);
+        await persistirOperacaoNarrativa(operacao);
     };
 
     btnEnviar.addEventListener('click', submeterAcao);
@@ -2581,50 +2540,69 @@ function renderizarCasos() {
     const campAtiva = gerenciadorCampanhas.campanhaAtiva();
 
     const html = `
-        <div style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center;">
-            <div>
-                <h2 style="font-family: var(--fonte-titulo); font-size: 22px; letter-spacing: 1px;">DIVISÃO DE CRIMES ESPECIAIS — DOSSIÊS</h2>
-                <p style="color: var(--texto-secundario); font-size: 13px;">Inquéritos oficiais da Cidade de Blackwood que desafiam a lógica e a ciência forense.</p>
+        <div class="pagina-cabecalho">
+            <div class="pagina-cabecalho-topo">
+                <div class="pagina-cabecalho-info">
+                    <div class="pagina-breadcrumb">DCE // Blackwood &nbsp;&rsaquo;&nbsp; Dossiês</div>
+                    <h2 class="pagina-titulo">DIVISÃO DE CRIMES ESPECIAIS</h2>
+                    <p class="pagina-subtitulo">Inquéritos oficiais da Cidade de Blackwood que desafiam a lógica e a ciência forense convencional.</p>
+                </div>
+                <div class="pagina-meta-badge">
+                    ${campAtiva.casoAtivo ? `${campAtiva.casoAtivo.codigo} &mdash; EM INVESTIGAÇÃO` : 'NENHUM CASO VINCULADO'}
+                </div>
             </div>
-            <div style="font-family: var(--fonte-mono); font-size: 12px; color: var(--azul-forense); background: var(--bg-card); padding: 8px 16px; border-radius: 6px; border: 1px solid var(--cinza-borda);">
-                STATUS: ${campAtiva.casoAtivo ? `${campAtiva.casoAtivo.codigo} ATIVO NA CAMPANHA` : 'NENHUM CASO VINCULADO'}
-            </div>
+            <div class="pagina-divisor"></div>
         </div>
 
         <div class="grid-casos">
             ${dadosCasos.map(c => {
                 const esteAtivoNaCampanha = campAtiva.casoAtivo && campAtiva.casoAtivo.id === c.id;
                 return `
-                <div class="card-caso-grande">
-                    <div>
+                <article class="card-caso-grande">
+                    <div class="card-caso-corpo">
                         <div class="caso-header-topo">
                             <span>${c.codigo} // ${c.episodio}</span>
-                            <span class="badge-status-caso">${esteAtivoNaCampanha ? 'EM INVESTIGAÇÃO ATIVA' : c.status}</span>
+                            ${esteAtivoNaCampanha
+                                ? `<span class="badge-status-caso">EM INVESTIGAÇÃO ATIVA</span>`
+                                : `<span class="badge-status-inativo">${c.status}</span>`
+                            }
                         </div>
                         <h3 class="caso-nome">${c.titulo}</h3>
-                        <div style="font-size: 12px; color: var(--azul-forense); font-family: var(--fonte-mono); margin-bottom: 12px;">${c.subtitulo}</div>
+                        <div class="caso-subtitulo">${c.subtitulo}</div>
                         <p class="caso-descricao">${c.descricao}</p>
                     </div>
 
-                    <div>
-                        <div class="caso-stats-bar">
-                            <div>VÍTIMA: <b style="color: #fff;">${c.vitima}</b></div>
-                            <div>LOCAL: <b style="color: #fff;">${c.localPrincipal}</b></div>
-                            <div>PISTAS: <b style="color: var(--azul-forense);">${c.pistasVinculadas}</b></div>
-                            <div>EVIDÊNCIAS: <b style="color: var(--carmesim-brilho);">${c.evidenciasVinculadas}</b></div>
+                    <div class="card-caso-rodape">
+                        <div class="caso-stats-bar" style="margin-bottom: 14px;">
+                            <div class="caso-stat-item">
+                                <div class="caso-stat-rotulo">Vítima</div>
+                                <div class="caso-stat-valor">${c.vitima}</div>
+                            </div>
+                            <div class="caso-stat-item">
+                                <div class="caso-stat-rotulo">Local</div>
+                                <div class="caso-stat-valor">${c.localPrincipal}</div>
+                            </div>
+                            <div class="caso-stat-item">
+                                <div class="caso-stat-rotulo">Pistas</div>
+                                <div class="caso-stat-valor" style="color: var(--azul-forense);">${c.pistasVinculadas}</div>
+                            </div>
+                            <div class="caso-stat-item">
+                                <div class="caso-stat-rotulo">Evidências</div>
+                                <div class="caso-stat-valor" style="color: var(--carmesim-brilho);">${c.evidenciasVinculadas}</div>
+                            </div>
                         </div>
 
                         ${esteAtivoNaCampanha ? `
-                            <button class="btn-primario" onclick="window.navegarAba('investigacao')">
-                                ACESSAR TERMINAL DA CENA (APTO 504)
+                            <button class="btn-primario" onclick="window.navegarAba('investigacao')" style="width: 100%;">
+                                ACESSAR TERMINAL DA INVESTIGAÇÃO
                             </button>
                         ` : `
-                            <button class="btn-primario" onclick="window.assumirCaso('${c.id}')">
-                                ASSUMIR ESTE CASO (${c.codigo})
+                            <button class="btn-primario" onclick="window.assumirCaso('${c.id}')" style="width: 100%;">
+                                ASSUMIR CASO ${c.codigo}
                             </button>
                         `}
                     </div>
-                </div>
+                </article>
                 `;
             }).join('')}
         </div>
@@ -2632,75 +2610,102 @@ function renderizarCasos() {
     conteudoPrincipal.innerHTML = html;
 }
 
+
 /**
  * 4. TELA: PESSOAS (BANCO DE PERSONAGENS CANÔNICOS OFICIAIS)
  */
 function renderizarPessoas() {
     const html = `
-        <div style="margin-bottom: 24px;">
-            <h2 style="font-family: var(--fonte-titulo); font-size: 22px; letter-spacing: 1px;">CRIMSON VEIL — BANCO DE PERSONAGENS</h2>
-            <p style="color: var(--texto-secundario); font-size: 13px;">Registros oficiais da Divisão de Crimes Especiais, Perícia Médica, Psicologia e Figuras Notáveis de Blackwood.</p>
+        <div class="pagina-cabecalho">
+            <div class="pagina-cabecalho-topo">
+                <div class="pagina-cabecalho-info">
+                    <div class="pagina-breadcrumb">DCE // Blackwood &nbsp;&rsaquo;&nbsp; Personagens</div>
+                    <h2 class="pagina-titulo">BANCO DE PERSONAGENS</h2>
+                    <p class="pagina-subtitulo">Registros oficiais da Divisão de Crimes Especiais, Perícia Médica, Psicologia e Figuras Notáveis da Cidade de Blackwood.</p>
+                </div>
+                <div class="pagina-meta-badge">${dadosPessoas.length} PERFIS CADASTRADOS</div>
+            </div>
+            <div class="pagina-divisor"></div>
         </div>
 
         <div class="grid-casos">
-            ${dadosPessoas.map(p => `
-                <div class="card-caso-grande">
-                    <div>
+            ${dadosPessoas.map(p => {
+                const corStatus = p.status === 'Óbito confirmado às 02:17' ? 'tag-badge-carmesim' : 'tag-badge-verde';
+                return `
+                <article class="card-caso-grande">
+                    <div class="card-caso-corpo">
                         <div class="caso-header-topo">
                             <span>${p.divisao || 'REGISTRO'}</span>
-                            <span class="tag-badge ${p.status === 'Óbito confirmado às 02:17' ? 'tag-badge-carmesim' : 'tag-badge-azul'}">${p.status}</span>
+                            <span class="tag-badge ${corStatus}">${p.status}</span>
                         </div>
-                        <h3 class="caso-nome" style="font-size: 18px;">${p.nome}</h3>
-                        <div style="font-size: 11px; font-family: var(--fonte-mono); color: var(--carmesim-brilho); margin-bottom: 4px;">${p.cargo} (${p.idade})</div>
-                        <div style="font-size: 11px; font-family: var(--fonte-mono); color: var(--azul-forense); margin-bottom: 10px;">${p.personalidade}</div>
+                        <h3 class="caso-nome" style="font-size: 19px;">${p.nome}</h3>
+                        <div class="caso-subtitulo">${p.cargo} &bull; ${p.idade}</div>
+                        <p class="caso-descricao" style="font-style: italic; margin-bottom: 8px;">&ldquo;${p.personalidade}&rdquo;</p>
                         <p class="caso-descricao">${p.detalhes}</p>
                     </div>
-
-                    <div class="caso-stats-bar" style="margin-bottom: 0;">
-                        <div>PAPEL: <b style="color: #fff;">${p.papel}</b></div>
-                        <div>STATUS: <b style="color: var(--azul-forense);">${p.status}</b></div>
+                    <div class="card-caso-rodape">
+                        <div class="caso-stats-bar" style="margin-bottom: 0;">
+                            <div class="caso-stat-item">
+                                <div class="caso-stat-rotulo">Papel</div>
+                                <div class="caso-stat-valor">${p.papel}</div>
+                            </div>
+                            <div class="caso-stat-item">
+                                <div class="caso-stat-rotulo">Status</div>
+                                <div class="caso-stat-valor" style="color: ${p.status === 'Óbito confirmado às 02:17' ? 'var(--carmesim-brilho)' : 'var(--verde-status)'};">${p.status}</div>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            `).join('')}
+                </article>
+                `;
+            }).join('')}
         </div>
     `;
     conteudoPrincipal.innerHTML = html;
 }
+
 
 /**
  * 5. TELA: LOCAIS
  */
 function renderizarLocais() {
     const html = `
-        <div style="margin-bottom: 24px;">
-            <h2 style="font-family: var(--fonte-titulo); font-size: 22px; letter-spacing: 1px;">MAPEAMENTO DE LOCAIS — CIDADE DE BLACKWOOD</h2>
-            <p style="color: var(--texto-secundario); font-size: 13px;">Cenas de crime ativas, base da DCE e pontos urbanos sob investigação.</p>
+        <div class="pagina-cabecalho">
+            <div class="pagina-cabecalho-topo">
+                <div class="pagina-cabecalho-info">
+                    <div class="pagina-breadcrumb">DCE // Blackwood &nbsp;&rsaquo;&nbsp; Locais</div>
+                    <h2 class="pagina-titulo">MAPEAMENTO DE LOCAIS</h2>
+                    <p class="pagina-subtitulo">Cenas de crime ativas, base da DCE e pontos urbanos sob investigação na Cidade de Blackwood.</p>
+                </div>
+                <div class="pagina-meta-badge">${dadosLocais.length} LOCAIS CATALOGADOS</div>
+            </div>
+            <div class="pagina-divisor"></div>
         </div>
 
         <div class="grid-casos">
             ${dadosLocais.map(loc => `
-                <div class="card-caso-grande">
-                    <div>
+                <article class="card-caso-grande">
+                    <div class="card-caso-corpo">
                         <div class="caso-header-topo">
                             <span>${loc.tipo}</span>
                             <span class="tag-badge ${loc.ativoAgora ? 'tag-badge-carmesim' : 'tag-badge-ouro'}">${loc.statusCena}</span>
                         </div>
-                        <h3 class="caso-nome" style="font-size: 18px;">${loc.nome}</h3>
-                        <div style="font-size: 12px; font-family: var(--fonte-mono); color: var(--texto-secundario); margin-bottom: 10px;">${loc.endereco}</div>
+                        <h3 class="caso-nome" style="font-size: 19px;">${loc.nome}</h3>
+                        <div class="caso-subtitulo">${loc.endereco}</div>
                         <p class="caso-descricao">${loc.descricao}</p>
                     </div>
-
-                    <div style="border-top: 1px solid var(--cinza-borda); padding-top: 14px;">
-                        <button class="btn-primario" style="padding: 10px 16px; font-size: 12px;" ${loc.ativoAgora ? 'disabled style="opacity: 0.6;"' : ''} onclick="alert('Diligência da equipe para ${loc.nome} registrada.')">
-                            ${loc.ativoAgora ? 'CENA ATIVA NO MOMENTO' : 'SOLICITAR DESLOCAMENTO COM A EQUIPE'}
+                    <div class="card-caso-rodape">
+                        <button class="btn-primario" style="width: 100%; ${loc.ativoAgora ? 'opacity: 0.6; cursor: not-allowed;' : ''}"
+                            ${loc.ativoAgora ? 'disabled' : `onclick="alert('Diligência da equipe para ${loc.nome} registrada.')"`}>
+                            ${loc.ativoAgora ? 'CENA ATIVA — EQUIPE NO LOCAL' : 'SOLICITAR DESLOCAMENTO'}
                         </button>
                     </div>
-                </div>
+                </article>
             `).join('')}
         </div>
     `;
     conteudoPrincipal.innerHTML = html;
 }
+
 
 /**
  * 6. TELA: PISTAS (ISOLADAS POR CAMPANHA)
@@ -2710,45 +2715,43 @@ function renderizarPistas() {
     const pistas = campAtiva.pistas;
 
     const html = `
-        <div style="margin-bottom: 24px;">
-            <h2 style="font-family: var(--fonte-titulo); font-size: 22px; letter-spacing: 1px;">CATÁLOGO DE PISTAS OBSERVADAS</h2>
-            <p style="color: var(--texto-secundario); font-size: 13px;">Indícios, declarações e elementos perceptíveis levantados em campo pela DCE para esta campanha.</p>
+        <div class="pagina-cabecalho">
+            <div class="pagina-cabecalho-topo">
+                <div class="pagina-cabecalho-info">
+                    <div class="pagina-breadcrumb">DCE // Blackwood &nbsp;&rsaquo;&nbsp; Investigação</div>
+                    <h2 class="pagina-titulo">CATÁLOGO DE PISTAS</h2>
+                    <p class="pagina-subtitulo">Indícios, declarações e elementos perceptivos levantados em campo pela DCE para esta campanha.</p>
+                </div>
+                <div class="pagina-meta-badge">${pistas.length} ${pistas.length === 1 ? 'PISTA REGISTRADA' : 'PISTAS REGISTRADAS'}</div>
+            </div>
+            <div class="pagina-divisor"></div>
         </div>
 
         ${pistas.length > 0 ? `
-            <table class="tabela-investigativa">
-                <thead>
-                    <tr>
-                        <th style="width: 110px;">CÓDIGO</th>
-                        <th>TÍTULO DA PISTA</th>
-                        <th>LOCAL ORIGEM</th>
-                        <th>CATEGORIA</th>
-                        <th>STATUS</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${pistas.map(p => `
-                        <tr class="linha-item" onclick="window.abrirModalDetalhes('${p.id}', 'pista')">
-                            <td style="font-family: var(--fonte-mono); color: var(--azul-forense); font-weight: 600;">${p.id}</td>
-                            <td style="font-weight: 600; color: #fff;">${p.titulo}</td>
-                            <td style="color: var(--texto-secundario); font-size: 13px;">${p.origem}</td>
-                            <td><span class="tag-badge tag-badge-ouro">${p.categoria}</span></td>
-                            <td><span class="tag-badge tag-badge-carmesim">${p.status}</span></td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
+            <div class="grid-pistas-cards">
+                ${pistas.map(p => `
+                    <div class="card-pista" onclick="window.abrirModalDetalhes('${p.id}', 'pista')" role="button" tabindex="0">
+                        <div class="card-pista-id">${p.id}</div>
+                        <div class="card-pista-titulo">${p.titulo}</div>
+                        <div class="card-pista-meta">
+                            <span class="tag-badge tag-badge-ouro">${p.categoria}</span>
+                            <span class="tag-badge tag-badge-carmesim">${p.status}</span>
+                        </div>
+                        <div style="font-size: 11px; color: var(--texto-mutado); font-family: var(--fonte-mono);">${p.origem}</div>
+                    </div>
+                `).join('')}
+            </div>
         ` : `
-            <div style="color: var(--texto-mutado); font-family: var(--fonte-mono); font-size: 13px; padding: 36px 20px; text-align: center; border: 1px dashed var(--cinza-borda); border-radius: 6px;">
-                NENHUMA PISTA REGISTRADA NESTA CAMPANHA ATÉ O MOMENTO.<br>
-                <span style="font-size: 11px; color: var(--texto-secundario); margin-top: 6px; display: inline-block;">
-                    Interaja com a cena ou assuma um caso na aba de Casos para catalogar indícios.
-                </span>
+            <div class="pagina-estado-vazio">
+                <div class="pagina-estado-vazio-icone">&#128269;</div>
+                <div class="pagina-estado-vazio-titulo">NENHUMA PISTA REGISTRADA</div>
+                <p class="pagina-estado-vazio-desc">Interaja com a cena ou assuma um caso para catalogar indícios nesta campanha.</p>
             </div>
         `}
     `;
     conteudoPrincipal.innerHTML = html;
 }
+
 
 /**
  * 7. TELA: EVIDÊNCIAS (ISOLADAS POR CAMPANHA)
@@ -2758,68 +2761,80 @@ function renderizarEvidencias() {
     const evidencias = campAtiva.evidencias;
 
     const html = `
-        <div style="margin-bottom: 24px;">
-            <h2 style="font-family: var(--fonte-titulo); font-size: 22px; letter-spacing: 1px;">ACERVO DE EVIDÊNCIAS FORENSES — DCE</h2>
-            <p style="color: var(--texto-secundario); font-size: 13px;">Materiais físicos, documentos e laudos oficiais mantidos sob cadeia de custódia da DCE para esta campanha.</p>
+        <div class="pagina-cabecalho">
+            <div class="pagina-cabecalho-topo">
+                <div class="pagina-cabecalho-info">
+                    <div class="pagina-breadcrumb">DCE // Blackwood &nbsp;&rsaquo;&nbsp; Investigação</div>
+                    <h2 class="pagina-titulo">ACERVO DE EVIDÊNCIAS</h2>
+                    <p class="pagina-subtitulo">Materiais físicos, documentos e laudos oficiais mantidos sob cadeia de custódia da DCE para esta campanha.</p>
+                </div>
+                <div class="pagina-meta-badge">${evidencias.length} ${evidencias.length === 1 ? 'ITEM EM CUSTÓDIA' : 'ITENS EM CUSTÓDIA'}</div>
+            </div>
+            <div class="pagina-divisor"></div>
         </div>
 
         ${evidencias.length > 0 ? `
-            <table class="tabela-investigativa">
-                <thead>
-                    <tr>
-                        <th style="width: 120px;">ID / PROTOCOLO</th>
-                        <th>EVIDÊNCIA / MATERIAL</th>
-                        <th>TIPO</th>
-                        <th>DATA COLETA</th>
-                        <th>STATUS CUSTÓDIA</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${evidencias.map(e => `
-                        <tr class="linha-item" onclick="window.abrirModalDetalhes('${e.id}', 'evidencia')">
-                            <td style="font-family: var(--fonte-mono); color: var(--carmesim-brilho); font-weight: 600;">${e.id}</td>
-                            <td style="font-weight: 600; color: #fff;">${e.nome}</td>
-                            <td><span class="tag-badge tag-badge-azul">${e.tipo}</span></td>
-                            <td style="color: var(--texto-secundario); font-size: 13px; font-family: var(--fonte-mono);">${e.dataColeta}</td>
-                            <td><span class="tag-badge tag-badge-ouro">${e.statusCustodia}</span></td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
+            <div class="grid-pistas-cards">
+                ${evidencias.map(e => `
+                    <div class="card-pista card-evidencia" onclick="window.abrirModalDetalhes('${e.id}', 'evidencia')" role="button" tabindex="0">
+                        <div class="card-pista-id">${e.id}</div>
+                        <div class="card-pista-titulo">${e.nome}</div>
+                        <div class="card-pista-meta">
+                            <span class="tag-badge tag-badge-azul">${e.tipo}</span>
+                            <span class="tag-badge tag-badge-ouro">${e.statusCustodia}</span>
+                        </div>
+                        <div style="font-size: 11px; color: var(--texto-mutado); font-family: var(--fonte-mono);">${e.dataColeta}</div>
+                    </div>
+                `).join('')}
+            </div>
         ` : `
-            <div style="color: var(--texto-mutado); font-family: var(--fonte-mono); font-size: 13px; padding: 36px 20px; text-align: center; border: 1px dashed var(--cinza-borda); border-radius: 6px;">
-                NENHUMA EVIDÊNCIA SOB CUSTÓDIA NESTA CAMPANHA.<br>
-                <span style="font-size: 11px; color: var(--texto-secundario); margin-top: 6px; display: inline-block;">
-                    Itens apreendidos e laudos periciais serão anexados aqui conforme as diligências avançarem.
-                </span>
+            <div class="pagina-estado-vazio">
+                <div class="pagina-estado-vazio-icone">&#128196;</div>
+                <div class="pagina-estado-vazio-titulo">NENHUMA EVIDÊNCIA SOB CUSTÓDIA</div>
+                <p class="pagina-estado-vazio-desc">Itens apreendidos e laudos periciais serão anexados aqui conforme as diligências avançarem.</p>
             </div>
         `}
     `;
     conteudoPrincipal.innerHTML = html;
 }
 
+
 /**
  * 8. TELA: LINHA DO TEMPO (TIMELINE)
  */
 function renderizarTimeline() {
     const html = `
-        <div style="margin-bottom: 24px;">
-            <h2 style="font-family: var(--fonte-titulo); font-size: 22px; letter-spacing: 1px;">LINHA DO TEMPO HISTÓRICA — O PADRÃO DOS SÉCULOS</h2>
-            <p style="color: var(--texto-secundario); font-size: 13px;">Marcos canônicos dos desaparecimentos na Cidade de Blackwood conectados pelo mesmo símbolo.</p>
+        <div class="pagina-cabecalho">
+            <div class="pagina-cabecalho-topo">
+                <div class="pagina-cabecalho-info">
+                    <div class="pagina-breadcrumb">DCE // Blackwood &nbsp;&rsaquo;&nbsp; Análise</div>
+                    <h2 class="pagina-titulo">LINHA DO TEMPO HISTÓRICA</h2>
+                    <p class="pagina-subtitulo">Marcos canônicos dos desaparecimentos na Cidade de Blackwood conectados pelo mesmo símbolo ao longo dos séculos.</p>
+                </div>
+                <div class="pagina-meta-badge">${dadosTimeline.length} MARCOS REGISTRADOS</div>
+            </div>
+            <div class="pagina-divisor"></div>
         </div>
 
         <div class="timeline-container">
             <div class="timeline-linha"></div>
             ${dadosTimeline.map(item => `
                 <div class="timeline-marco">
-                    <div class="timeline-ano">${item.ano}</div>
-                    <div class="timeline-ponto"></div>
+                    <div class="timeline-data-col">
+                        <span class="timeline-ano">${item.ano}</span>
+                        <span class="timeline-data-detalhe">${item.categoria}</span>
+                    </div>
+
+                    <div class="timeline-conector">
+                        <div class="timeline-ponto"></div>
+                    </div>
+
                     <div class="timeline-card">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                        <div class="timeline-card-topo">
                             <span class="tag-badge tag-badge-azul">${item.categoria}</span>
-                            <span style="font-family: var(--fonte-mono); font-size: 10px; color: var(--carmesim-brilho);">${item.status}</span>
+                            <span style="font-family: var(--fonte-mono); font-size: 10px; color: var(--carmesim-brilho); letter-spacing: 1px;">${item.status}</span>
                         </div>
-                        <div style="color: #fff; font-size: 13px; font-weight: 500; line-height: 1.6;">${item.evento}</div>
+                        <div class="timeline-card-evento">${item.evento}</div>
                     </div>
                 </div>
             `).join('')}
@@ -2828,36 +2843,68 @@ function renderizarTimeline() {
     conteudoPrincipal.innerHTML = html;
 }
 
+
 /**
  * 9. TELA: QUADRO DE CONEXÕES (INVESTIGATION BOARD)
  */
 function renderizarConexoes() {
     const html = `
-        <div style="margin-bottom: 24px;">
-            <h2 style="font-family: var(--fonte-titulo); font-size: 22px; letter-spacing: 1px;">QUADRO DE CONEXÕES — DIVISÃO DE CRIMES ESPECIAIS</h2>
-            <p style="color: var(--texto-secundario); font-size: 13px;">Mapeamento visual de vítimas, pistas, instituições e figuras de poder da Cidade de Blackwood.</p>
+        <div class="pagina-cabecalho">
+            <div class="pagina-cabecalho-topo">
+                <div class="pagina-cabecalho-info">
+                    <div class="pagina-breadcrumb">DCE // Blackwood &nbsp;&rsaquo;&nbsp; Análise</div>
+                    <h2 class="pagina-titulo">QUADRO DE CONEXÕES</h2>
+                    <p class="pagina-subtitulo">Mapeamento visual de vítimas, pistas, instituições e figuras de poder da Cidade de Blackwood.</p>
+                </div>
+            </div>
+            <div class="pagina-divisor"></div>
         </div>
 
-        <div class="quadro-conexoes-canvas" id="quadro-canvas">
-            <div class="quadro-header">
-                DIVISÃO DE CRIMES ESPECIAIS // TEIA DE RELAÇÕES DO CASO 001
+        <div class="quadro-conexoes-wrapper">
+            <div class="quadro-controles">
+                <div class="quadro-legenda">
+                    <div class="quadro-legenda-item">
+                        <div class="quadro-legenda-cor" style="background: var(--carmesim-primario);"></div>
+                        VÍTIMA
+                    </div>
+                    <div class="quadro-legenda-item">
+                        <div class="quadro-legenda-cor" style="background: var(--ouro-alerta);"></div>
+                        SUSPEITO
+                    </div>
+                    <div class="quadro-legenda-item">
+                        <div class="quadro-legenda-cor" style="background: var(--azul-forense);"></div>
+                        PISTA / ELEMENTO
+                    </div>
+                    <div class="quadro-legenda-item">
+                        <div class="quadro-legenda-cor" style="background: rgba(255,255,255,0.3);"></div>
+                        INSTITUIÇÃO
+                    </div>
+                </div>
+                <div style="font-family: var(--fonte-mono); font-size: 10px; color: var(--texto-mutado); letter-spacing: 1px;">CASO #001 // TEIA DE RELAÇÕES</div>
             </div>
 
-            <svg class="quadro-svg" id="quadro-svg-linhas">
-                ${gerarLinhasSvgConexoes()}
-            </svg>
-
-            ${dadosConexoes.nos.map(n => `
-                <div class="no-cartao" style="left: ${n.x}px; top: ${n.y}px;">
-                    <div class="no-pin"></div>
-                    <div class="no-titulo">${n.rotulo}</div>
-                    <div class="no-tipo">${n.tipo}</div>
+            <div class="quadro-conexoes-canvas" id="quadro-canvas">
+                <div class="quadro-header">
+                    DIVISÃO DE CRIMES ESPECIAIS // TEIA DE RELAÇÕES DO CASO 001
                 </div>
-            `).join('')}
+
+                <svg class="quadro-svg" id="quadro-svg-linhas">
+                    ${gerarLinhasSvgConexoes()}
+                </svg>
+
+                ${dadosConexoes.nos.map(n => `
+                    <div class="no-cartao" data-tipo="${n.tipo?.toLowerCase() || 'elemento'}" style="left: ${n.x}px; top: ${n.y}px;">
+                        <div class="no-pin"></div>
+                        <div class="no-titulo">${n.rotulo}</div>
+                        <div class="no-tipo">${n.tipo}</div>
+                    </div>
+                `).join('')}
+            </div>
         </div>
     `;
     conteudoPrincipal.innerHTML = html;
 }
+
 
 function gerarLinhasSvgConexoes() {
     const mapaNos = {};
@@ -3118,48 +3165,71 @@ async function abrirGerenciadorImagemPerfil() {
  * 10. TELA: IDENTIDADE VISUAL & ARTES CANÔNICAS (BLACKWOOD)
  */
 function renderizarArtes() {
+    const peçasVisuais = [
+        {
+            arquivo: 'assets/poster-oficial-blackwood.jpg',
+            titulo: 'Pôster Oficial — DCE Blackwood',
+            descricao: '"Investigamos o impossível. Enfrentamos o desconhecido. Revelamos a verdade."',
+            rotulo: 'MATERIAL OFICIAL'
+        },
+        {
+            arquivo: 'assets/banco-de-personagens.jpg',
+            titulo: 'Banco de Personagens Canônicos',
+            descricao: 'Milena, Adrian, Helena, Noah, Maya, Iris, Sofia e Evelyn Cross.',
+            rotulo: 'REGISTRO DCE'
+        },
+        {
+            arquivo: 'assets/regras-base-rpg.jpg',
+            titulo: 'Regras Base do RPG Narrativo',
+            descricao: 'Os 11 princípios fundamentais de agência, diálogos e mundo do narrador.',
+            rotulo: 'MANUAL OPERACIONAL'
+        },
+        {
+            arquivo: 'assets/resumo-da-historia.jpg',
+            titulo: 'Resumo da História & O Véu',
+            descricao: 'A sociedade oculta de vampiros, conspirações e os relógios parados às 02:17.',
+            rotulo: 'DOSSIÉ CONFIDENCIAL'
+        }
+    ];
+
     const html = `
-        <div style="margin-bottom: 24px;">
-            <h2 style="font-family: var(--fonte-titulo); font-size: 22px; letter-spacing: 1px;">IDENTIDADE VISUAL OFICIAL — CIDADE DE BLACKWOOD</h2>
-            <p style="color: var(--texto-secundario); font-size: 13px;">Peças visuais, pôster oficial da DCE, infográfico de regras do RPG e banco de personagens.</p>
+        <div class="pagina-cabecalho">
+            <div class="pagina-cabecalho-topo">
+                <div class="pagina-cabecalho-info">
+                    <div class="pagina-breadcrumb">DCE // Blackwood &nbsp;&rsaquo;&nbsp; Material</div>
+                    <h2 class="pagina-titulo">IDENTIDADE VISUAL OFICIAL</h2>
+                    <p class="pagina-subtitulo">Peças visuais, pôster oficial da DCE, infográfico de regras do RPG narrativo e banco de personagens canônicos.</p>
+                </div>
+                <div class="pagina-meta-badge">${peçasVisuais.length} PEÇAS CATALOGADAS</div>
+            </div>
+            <div class="pagina-divisor"></div>
         </div>
 
         <div class="galeria-artes-grid">
-            <div class="card-arte-oficial">
-                <img src="assets/poster-oficial-blackwood.jpg" class="card-arte-preview" alt="Pôster Oficial" onclick="window.abrirModalImagem('assets/poster-oficial-blackwood.jpg', 'PÔSTER OFICIAL — DIVISÃO DE CRIMES ESPECIAIS')">
-                <div class="card-arte-info">
-                    <h3 class="card-arte-titulo">Pôster Oficial — DCE Blackwood</h3>
-                    <p class="card-arte-desc">"Investigamos o impossível. Enfrentamos o desconhecido. Revelamos a verdade."</p>
+            ${peçasVisuais.map(p => `
+                <div class="card-arte-oficial" onclick="window.abrirModalImagem('${p.arquivo}', '${p.titulo.toUpperCase()}')">
+                    <div class="card-arte-preview-wrapper">
+                        <img src="${p.arquivo}" class="card-arte-preview" alt="${p.titulo}"
+                            onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <div class="card-arte-placeholder" style="display: none; position: absolute; inset: 0;">
+                            <div class="card-arte-placeholder-sigil">⚔</div>
+                            <div class="card-arte-placeholder-rotulo">${p.rotulo}</div>
+                        </div>
+                        <div class="card-arte-overlay">
+                            <span class="card-arte-overlay-texto">Clique para ampliar</span>
+                        </div>
+                    </div>
+                    <div class="card-arte-info">
+                        <h3 class="card-arte-titulo">${p.titulo}</h3>
+                        <p class="card-arte-desc">${p.descricao}</p>
+                    </div>
                 </div>
-            </div>
-
-            <div class="card-arte-oficial">
-                <img src="assets/banco-de-personagens.jpg" class="card-arte-preview" alt="Banco de Personagens" onclick="window.abrirModalImagem('assets/banco-de-personagens.jpg', 'BANCO DE PERSONAGENS — DCE & BLACKWOOD')">
-                <div class="card-arte-info">
-                    <h3 class="card-arte-titulo">Banco de Personagens Canônicos</h3>
-                    <p class="card-arte-desc">Milena, Adrian, Helena, Noah, Maya, Iris, Sofia e Evelyn Cross.</p>
-                </div>
-            </div>
-
-            <div class="card-arte-oficial">
-                <img src="assets/regras-base-rpg.jpg" class="card-arte-preview" alt="Regras Base do RPG" onclick="window.abrirModalImagem('assets/regras-base-rpg.jpg', 'REGRAS BASE DO RPG NARRATIVO')">
-                <div class="card-arte-info">
-                    <h3 class="card-arte-titulo">Regras Base do RPG Narrativo</h3>
-                    <p class="card-arte-desc">Os 11 princípios fundamentais de agência, diálogos e mundo do narrador.</p>
-                </div>
-            </div>
-
-            <div class="card-arte-oficial">
-                <img src="assets/resumo-da-historia.jpg" class="card-arte-preview" alt="Resumo da História" onclick="window.abrirModalImagem('assets/resumo-da-historia.jpg', 'RESUMO DA HISTÓRIA & O VÉU')">
-                <div class="card-arte-info">
-                    <h3 class="card-arte-titulo">Resumo da História & O Véu</h3>
-                    <p class="card-arte-desc">A sociedade oculta de vampiros, conspirações e os relógios parados às 02:17.</p>
-                </div>
-            </div>
+            `).join('')}
         </div>
     `;
     conteudoPrincipal.innerHTML = html;
 }
+
 
 // Módulos ES6 são deferidos automaticamente — o DOM já está pronto na execução.
 // Chamar diretamente evita que o DOMContentLoaded (já disparado) seja ignorado.

@@ -76,6 +76,14 @@ export function salvarAcao(id, operacao) {
     });
 }
 
+export function executarAcaoNarrativa(id, operacao) {
+    return requisicao(`/campanhas/${encodeURIComponent(id)}/narrativa/acao`, {
+        method: 'POST',
+        headers: { 'Idempotency-Key': operacao.chaveOperacao },
+        body: JSON.stringify(operacao)
+    });
+}
+
 export function salvarEstadoCampanha(id, operacao) {
     return requisicao(`/campanhas/${encodeURIComponent(id)}/estado`, {
         method: 'PUT',
